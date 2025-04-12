@@ -13,18 +13,18 @@ export default function MobileNav() {
         <span className="text-xs mt-1">Home</span>
       </Link>
       
-      <Link href="/search" className="flex flex-col items-center p-2">
+      <Link href="/trade-offers" className="flex flex-col items-center p-2">
         <Icon 
-          icon={`ri-search-line text-xl ${location === '/search' ? 'text-primary' : 'text-neutral-600'}`} 
+          icon={`ri-exchange-line text-xl ${location === '/trade-offers' ? 'text-primary' : 'text-neutral-600'}`} 
         />
-        <span className="text-xs mt-1">Search</span>
+        <span className="text-xs mt-1">Trades</span>
       </Link>
       
       <Link href="/listing/new" className="flex flex-col items-center p-2">
         <div className="bg-accent rounded-full w-12 h-12 flex items-center justify-center -mt-5">
           <Icon icon="ri-add-line text-xl text-white" />
         </div>
-        <span className="text-xs mt-1">Sell/Trade</span>
+        <span className="text-xs mt-1">Sell</span>
       </Link>
       
       <Link href="/messages" className="flex flex-col items-center p-2">

@@ -117,6 +117,9 @@ export default function Header() {
                     <DropdownMenuItem asChild>
                       <Link href="/transactions">Transactions</Link>
                     </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/trade-offers">Trade Offers</Link>
+                    </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     {user.isAdmin && (
                       <>
