@@ -405,12 +405,12 @@ export default function ProductDetailPage() {
                 <div className="flex items-center mb-4">
                   {product.price && (
                     <span className="text-2xl font-bold text-secondary mr-2">
-                      ${product.price.toFixed(2)}
+                      {product.price.toLocaleString('vi-VN')} ₫
                     </span>
                   )}
                   {product.tradeValue && product.allowTrade && (
                     <span className="text-accent font-medium">
-                      {product.price ? "or trade" : `Trade Value: $${product.tradeValue.toFixed(2)}`}
+                      {product.price ? "or trade" : `Trade Value: ${product.tradeValue.toLocaleString('vi-VN')} ₫`}
                     </span>
                   )}
                 </div>
