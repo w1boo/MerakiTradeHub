@@ -1,19 +1,20 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { 
   Dialog, 
   DialogContent, 
   DialogHeader, 
   DialogTitle,
   DialogFooter,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Icon } from "@/components/ui/theme";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
 
 interface AddFundsModalProps {
   isOpen: boolean;
@@ -22,12 +23,27 @@ interface AddFundsModalProps {
 
 export function AddFundsModal({ isOpen, onClose }: AddFundsModalProps) {
   const [amount, setAmount] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState("card");
   const { toast } = useToast();
+  const { user } = useAuth();
+  
+  // Format number with commas for VND
+  const formatVND = (value: string): string => {
+    // Remove non-numeric characters
+    const numericValue = value.replace(/[^0-9]/g, '');
+    
+    // Format with commas for thousands
+    return numericValue.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  };
 
   // Handle quick amount selection
   const handleQuickAmount = (value: string) => {
     setAmount(value);
+  };
+
+  // Format amount on input
+  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const rawValue = e.target.value.replace(/[^0-9]/g, '');
+    setAmount(rawValue);
   };
 
   // Deposit mutation
@@ -38,8 +54,8 @@ export function AddFundsModal({ isOpen, onClose }: AddFundsModalProps) {
     },
     onSuccess: () => {
       toast({
-        title: "Deposit successful",
-        description: `$${amount} has been added to your account.`,
+        title: "Deposit request submitted",
+        description: `${formatVND(amount)} VND will be added to your account after your bank transfer is confirmed.`,
       });
       queryClient.invalidateQueries({ queryKey: ["/api/user"] }); // Refresh user balance
       onClose();
@@ -47,19 +63,19 @@ export function AddFundsModal({ isOpen, onClose }: AddFundsModalProps) {
     },
     onError: (error) => {
       toast({
-        title: "Deposit failed",
-        description: error.message || "Could not process your deposit. Please try again.",
+        title: "Deposit request failed",
+        description: error.message || "Could not process your deposit request. Please try again.",
         variant: "destructive",
       });
     }
   });
 
   const handleSubmit = () => {
-    const numAmount = parseFloat(amount);
-    if (isNaN(numAmount) || numAmount <= 0) {
+    const numAmount = parseInt(amount, 10);
+    if (isNaN(numAmount) || numAmount < 10000) {
       toast({
         title: "Invalid amount",
-        description: "Please enter a valid amount greater than zero.",
+        description: "Please enter a valid amount of at least 10,000 VND.",
         variant: "destructive",
       });
       return;
@@ -67,7 +83,7 @@ export function AddFundsModal({ isOpen, onClose }: AddFundsModalProps) {
 
     depositMutation.mutate({
       amount: numAmount,
-      method: paymentMethod
+      method: "bankTransfer"
     });
   };
 
@@ -76,75 +92,69 @@ export function AddFundsModal({ isOpen, onClose }: AddFundsModalProps) {
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="text-2xl font-semibold">Add Funds</DialogTitle>
+          <DialogDescription>
+            Add funds to your Meraki account to use for purchases or as escrow deposit for trades.
+          </DialogDescription>
         </DialogHeader>
-
-        <p className="text-neutral-600 mb-6">
-          Add funds to your Meraki account to use for purchases or as escrow deposit for trades.
-        </p>
 
         <div className="mb-6">
           <Label htmlFor="amount" className="block text-sm font-medium text-neutral-600 mb-1">
-            Amount
+            Amount (VND)
           </Label>
           <div className="relative">
-            <span className="absolute left-3 top-1/2 transform -translate-y-1/2 font-medium">$</span>
+            <span className="absolute left-3 top-1/2 transform -translate-y-1/2 font-medium">₫</span>
             <Input
               id="amount"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
+              value={formatVND(amount)}
+              onChange={handleAmountChange}
               className="pl-8 pr-4 py-3 text-xl font-medium"
-              placeholder="0.00"
+              placeholder="0"
             />
           </div>
+          <p className="text-sm text-neutral-500 mt-1">Minimum amount: 10,000 VND</p>
         </div>
 
         <div className="grid grid-cols-3 gap-3 mb-6">
-          {["25", "50", "100", "200", "500", "1000"].map((value) => (
+          {["10000", "50000", "100000", "200000", "500000", "1000000"].map((value) => (
             <Button
               key={value}
               variant="outline"
               onClick={() => handleQuickAmount(value)}
               className={amount === value ? "border-primary" : ""}
             >
-              ${value}
+              {formatVND(value)} ₫
             </Button>
           ))}
         </div>
 
         <div className="mb-6">
-          <h4 className="font-medium mb-3">Payment Method</h4>
-          <RadioGroup value={paymentMethod} onValueChange={setPaymentMethod}>
-            <div className={`flex items-center p-3 border rounded-lg mb-3 ${paymentMethod === "card" ? "border-primary bg-primary/5" : "border-neutral-200 hover:border-primary hover:bg-primary/5"}`}>
-              <RadioGroupItem value="card" id="card" className="mr-3" />
-              <Label htmlFor="card" className="flex items-center cursor-pointer">
-                <Icon icon="ri-bank-card-line text-xl mr-2" />
-                <span>Credit/Debit Card</span>
-              </Label>
+          <h4 className="font-medium mb-3">Bank Transfer Details</h4>
+          <div className="p-4 border rounded-lg border-primary bg-primary/5">
+            <div className="flex items-center mb-2">
+              <Icon icon="ri-bank-line text-xl mr-2 text-primary" />
+              <span className="font-medium">Bank: Vietcombank</span>
             </div>
-            
-            <div className={`flex items-center p-3 border rounded-lg mb-3 ${paymentMethod === "paypal" ? "border-primary bg-primary/5" : "border-neutral-200 hover:border-primary hover:bg-primary/5"}`}>
-              <RadioGroupItem value="paypal" id="paypal" className="mr-3" />
-              <Label htmlFor="paypal" className="flex items-center cursor-pointer">
-                <Icon icon="ri-paypal-line text-xl mr-2" />
-                <span>PayPal</span>
-              </Label>
+            <div className="mb-2">
+              <p className="font-semibold">Account Number: 1017158927</p>
+              <p className="font-semibold">Name: NGUYEN LE DANG KHOA</p>
             </div>
-            
-            <div className={`flex items-center p-3 border rounded-lg ${paymentMethod === "bankTransfer" ? "border-primary bg-primary/5" : "border-neutral-200 hover:border-primary hover:bg-primary/5"}`}>
-              <RadioGroupItem value="bankTransfer" id="bankTransfer" className="mr-3" />
-              <Label htmlFor="bankTransfer" className="flex items-center cursor-pointer">
-                <Icon icon="ri-bank-line text-xl mr-2" />
-                <span>Bank Transfer</span>
-              </Label>
+            <div className="mt-3 border-t pt-3 border-dashed border-primary/30">
+              <p className="text-sm font-medium">Transfer Description:</p>
+              <p className="bg-white p-2 rounded border mt-1 font-mono text-sm">
+                MERAKI {user?.username || ""}
+              </p>
+              <p className="text-xs text-neutral-500 mt-1">
+                Please include your username in the transfer description exactly as shown above.
+              </p>
             </div>
-          </RadioGroup>
+          </div>
         </div>
 
         <div className="mb-6">
           <div className="p-3 bg-neutral-100 rounded-lg text-neutral-700 text-sm">
             <p>
-              Funds added to your account can be used for purchases or held in escrow for trades. 
-              Unused funds can be withdrawn at any time.
+              After making your bank transfer, click the button below to submit your deposit request. 
+              Your funds will be available in your account once the transfer is confirmed.
             </p>
           </div>
         </div>
@@ -153,7 +163,7 @@ export function AddFundsModal({ isOpen, onClose }: AddFundsModalProps) {
           <Button
             className="w-full"
             onClick={handleSubmit}
-            disabled={!amount || depositMutation.isPending}
+            disabled={parseInt(amount, 10) < 10000 || depositMutation.isPending}
           >
             {depositMutation.isPending ? (
               <>
@@ -161,7 +171,7 @@ export function AddFundsModal({ isOpen, onClose }: AddFundsModalProps) {
                 Processing...
               </>
             ) : (
-              "Add Funds"
+              "Submit Deposit Request"
             )}
           </Button>
         </DialogFooter>

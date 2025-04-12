@@ -367,16 +367,16 @@ export default function ProfilePage() {
                       <div className="flex flex-col md:flex-row justify-between">
                         <div className="mb-4 md:mb-0">
                           <p className="text-neutral-600">Available Balance</p>
-                          <p className="text-3xl font-bold">${user?.balance.toFixed(2)}</p>
+                          <p className="text-3xl font-bold">{user?.balance.toLocaleString('vi-VN')} ₫</p>
                         </div>
                         <div className="mb-4 md:mb-0">
                           <p className="text-neutral-600">In Escrow</p>
-                          <p className="text-3xl font-bold">${user?.escrowBalance.toFixed(2)}</p>
+                          <p className="text-3xl font-bold">{user?.escrowBalance.toLocaleString('vi-VN')} ₫</p>
                         </div>
                         <div>
                           <p className="text-neutral-600">Total</p>
                           <p className="text-3xl font-bold">
-                            ${(user ? user.balance + user.escrowBalance : 0).toFixed(2)}
+                            {(user ? user.balance + user.escrowBalance : 0).toLocaleString('vi-VN')} ₫
                           </p>
                         </div>
                       </div>
@@ -420,7 +420,7 @@ export default function ProfilePage() {
                                 <TableRow key={deposit.id}>
                                   <TableCell>{formatDate(deposit.createdAt)}</TableCell>
                                   <TableCell className="capitalize">{deposit.method}</TableCell>
-                                  <TableCell>${deposit.amount.toFixed(2)}</TableCell>
+                                  <TableCell>{deposit.amount.toLocaleString('vi-VN')} ₫</TableCell>
                                   <TableCell>
                                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                                       deposit.status === 'completed' 

@@ -25,7 +25,7 @@ export default function AccountSummary() {
               </div>
               <div>
                 <p className="text-sm text-neutral-600">Account Balance</p>
-                <p className="text-lg font-semibold">${user.balance.toFixed(2)}</p>
+                <p className="text-lg font-semibold">{user.balance.toLocaleString('vi-VN')} ₫</p>
               </div>
             </div>
             
@@ -35,7 +35,7 @@ export default function AccountSummary() {
               </div>
               <div>
                 <p className="text-sm text-neutral-600">Active Escrow</p>
-                <p className="text-lg font-semibold">${user.escrowBalance.toFixed(2)}</p>
+                <p className="text-lg font-semibold">{user.escrowBalance.toLocaleString('vi-VN')} ₫</p>
               </div>
             </div>
             
