@@ -1,378 +1,434 @@
+/**
+ * Trade API for handling trade operations
+ */
 import { Request, Response } from "express";
-import { v4 as uuidv4 } from "uuid";
 import { storage } from "./storage";
-import { TradeOffer, InsertTradeOffer } from "@shared/schema";
+import { InsertTradeOffer } from "@shared/schema";
+import { v4 as uuidv4 } from "uuid";
 
-// Create a new trade offer
+/**
+ * Creates a new trade offer
+ */
 export async function createTradeOffer(req: Request, res: Response) {
   try {
     if (!req.isAuthenticated()) {
-      return res.status(401).json({ error: 'Unauthorized' });
+      return res.status(401).json({ error: "Unauthorized" });
     }
 
-    const { buyerId, sellerId, productId, offerValue } = req.body;
-    
-    if (!buyerId || !sellerId || !productId || !offerValue) {
-      return res.status(400).json({ error: 'Missing required fields' });
-    }
-    
-    // Check if the product exists
+    const { sellerId, productId, offerValue } = req.body;
+    const buyerId = req.user.id;
+
+    // Check if product exists
     const product = await storage.getProduct(productId);
     if (!product) {
-      return res.status(404).json({ error: 'Product not found' });
+      return res.status(404).json({ error: "Product not found" });
     }
-    
-    // User can't make a trade offer for their own product
-    if (req.user!.id === product.sellerId) {
-      return res.status(400).json({ error: 'Cannot make a trade offer for your own product' });
-    }
-    
+
+    // Create a trade offer
     const tradeOffer: InsertTradeOffer = {
       buyerId,
       sellerId,
       productId,
       offerValue,
-      status: 'pending',
+      status: "pending",
       buyerConfirmed: false,
-      sellerConfirmed: false
+      sellerConfirmed: false,
     };
-    
+
     const newTradeOffer = await storage.createTradeOffer(tradeOffer);
-    
+
     // Create a message to notify the seller about the trade offer
-    const messageContent = `
+    const content = `
 **Trade Offer for: ${product.title}**
 
-A user has made a trade offer for your product:
-- **Offer Value:** ${(offerValue / 1000).toFixed(3)} ₫
+I'd like to offer my item for trade:
+- **Item:** ${req.body.offerItemName || "Unnamed item"}
+- **Description:** ${req.body.offerItemDescription || "No description"}
+- **Trade Value:** ${(offerValue / 1000).toFixed(3)} ₫
 
-Please check your trade offers to review this.
-    `;
-    
+
+Please let me know if you're interested in this trade.
+      `;
+
     const message = await storage.createMessage({
       senderId: buyerId,
       receiverId: sellerId,
-      content: messageContent,
+      content,
+      images: req.body.offerItemImages || [],
       isTrade: true,
       productId,
       tradeOfferId: newTradeOffer.id,
+      tradeDetails: req.body.tradeDetails || null,
       tradeConfirmedBuyer: false,
-      tradeConfirmedSeller: false
+      tradeConfirmedSeller: false,
     });
-    
-    // Check if conversation exists, if not create one
+
+    // Check if a conversation exists between the two users
     let conversation = await storage.getConversationByUsers(buyerId, sellerId);
     if (!conversation) {
+      // Create a new conversation
       conversation = await storage.createConversation({
         user1Id: buyerId,
         user2Id: sellerId,
-        lastMessageId: message.id
+        lastMessageId: message.id,
       });
     } else {
-      // Update last message id
+      // Update the last message in the conversation
       await storage.updateConversation(conversation.id, {
         lastMessageId: message.id,
       });
     }
-    
+
     // Update the trade offer with the related message ID
     await storage.updateTradeOffer(newTradeOffer.id, {
-      relatedMessageId: message.id
+      relatedMessageId: message.id,
     });
-    
-    return res.status(201).json({ 
-      tradeOffer: newTradeOffer,
-      message,
-      conversation
-    });
-  } catch (error) {
-    console.error('Error creating trade offer:', error);
-    return res.status(500).json({ error: 'Internal server error' });
+
+    return res.status(201).json({ message, tradeOffer: newTradeOffer });
+  } catch (error: any) {
+    console.error("Error creating trade offer:", error);
+    return res.status(500).json({ error: error.message });
   }
 }
 
-// Get all trade offers for the current user
+/**
+ * Gets all trade offers for a user
+ */
 export async function getUserTradeOffers(req: Request, res: Response) {
   try {
     if (!req.isAuthenticated()) {
-      return res.status(401).json({ error: 'Unauthorized' });
+      return res.status(401).json({ error: "Unauthorized" });
     }
-    
-    const userId = req.user!.id;
+
+    const userId = req.user.id;
     const tradeOffers = await storage.getUserTradeOffers(userId);
-    
+
     return res.status(200).json(tradeOffers);
-  } catch (error) {
-    console.error('Error getting user trade offers:', error);
-    return res.status(500).json({ error: 'Internal server error' });
+  } catch (error: any) {
+    console.error("Error getting user trade offers:", error);
+    return res.status(500).json({ error: error.message });
   }
 }
 
-// Get pending trade offers
+/**
+ * Gets all pending trade offers for a user
+ */
 export async function getPendingTradeOffers(req: Request, res: Response) {
   try {
     if (!req.isAuthenticated()) {
-      return res.status(401).json({ error: 'Unauthorized' });
+      return res.status(401).json({ error: "Unauthorized" });
     }
-    
-    const userId = req.user!.id;
-    const pendingOffers = await storage.getPendingTradeOffers(userId);
-    
-    return res.status(200).json(pendingOffers);
-  } catch (error) {
-    console.error('Error getting pending trade offers:', error);
-    return res.status(500).json({ error: 'Internal server error' });
+
+    const userId = req.user.id;
+    const pendingTradeOffers = await storage.getPendingTradeOffers(userId);
+
+    return res.status(200).json(pendingTradeOffers);
+  } catch (error: any) {
+    console.error("Error getting pending trade offers:", error);
+    return res.status(500).json({ error: error.message });
   }
 }
 
-// Get a specific trade offer
+/**
+ * Gets a trade offer by ID
+ */
 export async function getTradeOffer(req: Request, res: Response) {
   try {
     if (!req.isAuthenticated()) {
-      return res.status(401).json({ error: 'Unauthorized' });
+      return res.status(401).json({ error: "Unauthorized" });
     }
-    
-    const { id } = req.params;
-    const tradeOffer = await storage.getTradeOffer(Number(id));
-    
+
+    const tradeOfferId = parseInt(req.params.id);
+    if (isNaN(tradeOfferId)) {
+      return res.status(400).json({ error: "Invalid trade offer ID" });
+    }
+
+    const tradeOffer = await storage.getTradeOffer(tradeOfferId);
     if (!tradeOffer) {
-      return res.status(404).json({ error: 'Trade offer not found' });
+      return res.status(404).json({ error: "Trade offer not found" });
     }
-    
-    // Users can only view their own trade offers
-    if (tradeOffer.buyerId !== req.user!.id && tradeOffer.sellerId !== req.user!.id) {
-      return res.status(403).json({ error: 'Forbidden' });
+
+    // Check if the user is either the buyer or seller of the trade offer
+    const userId = req.user.id;
+    if (tradeOffer.buyerId !== userId && tradeOffer.sellerId !== userId) {
+      return res.status(403).json({ error: "You don't have permission to view this trade offer" });
     }
-    
+
     return res.status(200).json(tradeOffer);
-  } catch (error) {
-    console.error('Error getting trade offer:', error);
-    return res.status(500).json({ error: 'Internal server error' });
+  } catch (error: any) {
+    console.error("Error getting trade offer:", error);
+    return res.status(500).json({ error: error.message });
   }
 }
 
-// Accept a trade offer
+/**
+ * Accepts a trade offer
+ */
 export async function acceptTradeOffer(req: Request, res: Response) {
   try {
     if (!req.isAuthenticated()) {
-      return res.status(401).json({ error: 'Unauthorized' });
+      return res.status(401).json({ error: "Unauthorized" });
     }
-    
-    const { id } = req.params;
-    const tradeOffer = await storage.getTradeOffer(Number(id));
-    
+
+    const tradeOfferId = parseInt(req.params.id);
+    if (isNaN(tradeOfferId)) {
+      return res.status(400).json({ error: "Invalid trade offer ID" });
+    }
+
+    const tradeOffer = await storage.getTradeOffer(tradeOfferId);
     if (!tradeOffer) {
-      return res.status(404).json({ error: 'Trade offer not found' });
+      return res.status(404).json({ error: "Trade offer not found" });
     }
-    
-    // Only the seller can accept the trade offer
-    if (tradeOffer.sellerId !== req.user!.id) {
-      return res.status(403).json({ error: 'Only the seller can accept trade offers' });
+
+    // Check if the user is the seller of the trade offer
+    const userId = req.user.id;
+    if (tradeOffer.sellerId !== userId) {
+      return res.status(403).json({ error: "Only the seller can accept a trade offer" });
     }
-    
-    // Cannot accept already completed or rejected offers
-    if (tradeOffer.status !== 'pending') {
-      return res.status(400).json({ error: `Trade offer is already ${tradeOffer.status}` });
+
+    // Check if the trade offer is already accepted
+    if (tradeOffer.status !== "pending") {
+      return res.status(400).json({ error: `This trade offer has already been ${tradeOffer.status}` });
     }
-    
-    // Get product information
-    const product = await storage.getProduct(tradeOffer.productId);
-    if (!product) {
-      return res.status(404).json({ error: 'Product not found' });
-    }
-    
-    // Check that users have enough balance
-    const buyer = await storage.getUser(tradeOffer.buyerId);
-    const seller = await storage.getUser(tradeOffer.sellerId);
-    
-    if (!buyer || !seller) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-    
-    const tradeValue = tradeOffer.offerValue;
-    const platformFee = Math.round(tradeValue * 0.10); // 10% middleman fee
-    
-    if (buyer.balance < (tradeValue + platformFee)) {
-      return res.status(400).json({ error: 'Buyer does not have enough balance' });
-    }
-    
+
     // Update the trade offer status
-    const updatedTradeOffer = await storage.updateTradeOffer(tradeOffer.id, {
-      status: 'accepted',
-      sellerConfirmed: true
+    const updatedTradeOffer = await storage.updateTradeOffer(tradeOfferId, {
+      status: "accepted",
+      sellerConfirmed: true,
     });
-    
-    // Update the related message
+
+    // Update the related message if it exists
     if (tradeOffer.relatedMessageId) {
-      await storage.updateMessage(tradeOffer.relatedMessageId, {
-        tradeConfirmedSeller: true
-      });
+      const message = await storage.getMessage(tradeOffer.relatedMessageId);
+      if (message) {
+        await storage.updateMessage(message.id, {
+          tradeConfirmedSeller: true,
+        });
+
+        // Add a system message to the conversation
+        await storage.createMessage({
+          senderId: userId,
+          receiverId: tradeOffer.buyerId,
+          content: `Trade offer for "${req.body.productTitle || 'Product'}" has been accepted. Buyer must confirm to complete the trade.`,
+          isTrade: false,
+        });
+      }
     }
-    
-    // Move the buyer's money to escrow
-    await storage.updateUser(buyer.id, {
-      balance: buyer.balance - (tradeValue + platformFee),
-      escrowBalance: buyer.escrowBalance + tradeValue
-    });
-    
-    // Create a transaction record
-    const transaction = await storage.createTransaction({
-      transactionId: uuidv4(),
-      productId: product.id,
-      buyerId: buyer.id,
-      sellerId: seller.id,
-      amount: tradeValue,
-      platformFee,
-      status: 'pending',
-      type: 'trade',
-      tradeDetails: {
-        tradeOfferId: tradeOffer.id,
-        offerValue: tradeValue
-      },
-      timeline: [
-        {
-          status: 'created',
-          timestamp: new Date().toISOString(),
-          notes: 'Trade offer accepted by seller'
-        }
-      ]
-    });
-    
-    return res.status(200).json({
-      tradeOffer: updatedTradeOffer,
-      transaction
-    });
-  } catch (error) {
-    console.error('Error accepting trade offer:', error);
-    return res.status(500).json({ error: 'Internal server error' });
+
+    return res.status(200).json(updatedTradeOffer);
+  } catch (error: any) {
+    console.error("Error accepting trade offer:", error);
+    return res.status(500).json({ error: error.message });
   }
 }
 
-// Confirm a trade (by buyer)
+/**
+ * Confirms a trade (after it has been accepted)
+ */
 export async function confirmTrade(req: Request, res: Response) {
   try {
     if (!req.isAuthenticated()) {
-      return res.status(401).json({ error: 'Unauthorized' });
+      return res.status(401).json({ error: "Unauthorized" });
     }
-    
-    const { id } = req.params;
-    const tradeOffer = await storage.getTradeOffer(Number(id));
-    
+
+    const tradeOfferId = parseInt(req.params.id);
+    if (isNaN(tradeOfferId)) {
+      return res.status(400).json({ error: "Invalid trade offer ID" });
+    }
+
+    const tradeOffer = await storage.getTradeOffer(tradeOfferId);
     if (!tradeOffer) {
-      return res.status(404).json({ error: 'Trade offer not found' });
+      return res.status(404).json({ error: "Trade offer not found" });
     }
-    
-    // Only the buyer can confirm the trade after the seller accepts
-    if (tradeOffer.buyerId !== req.user!.id) {
-      return res.status(403).json({ error: 'Only the buyer can confirm trades' });
+
+    // Get buyer and seller IDs
+    const { buyerId, sellerId } = tradeOffer;
+    const userId = req.user.id;
+
+    // Check if the user is either the buyer or seller
+    if (buyerId !== userId && sellerId !== userId) {
+      return res.status(403).json({ error: "You don't have permission to confirm this trade" });
     }
-    
-    // Can only confirm accepted trades
-    if (tradeOffer.status !== 'accepted') {
-      return res.status(400).json({ error: 'Trade offer must be accepted first' });
+
+    // A user can only confirm their respective side of the trade
+    const isBuyer = buyerId === userId;
+    const isSeller = sellerId === userId;
+
+    // Check if the trade offer is in the correct state
+    if (tradeOffer.status !== "accepted") {
+      return res.status(400).json({ error: "This trade offer must be accepted first" });
     }
-    
-    // Update the trade offer
-    const updatedTradeOffer = await storage.updateTradeOffer(tradeOffer.id, {
-      status: 'completed',
-      buyerConfirmed: true
-    });
-    
-    // Update the related message
-    if (tradeOffer.relatedMessageId) {
-      await storage.updateMessage(tradeOffer.relatedMessageId, {
-        tradeConfirmedBuyer: true
+
+    // Buyer confirmation
+    if (isBuyer && !tradeOffer.buyerConfirmed) {
+      await storage.updateTradeOffer(tradeOfferId, {
+        buyerConfirmed: true,
       });
+
+      // Update related message
+      if (tradeOffer.relatedMessageId) {
+        const message = await storage.getMessage(tradeOffer.relatedMessageId);
+        if (message) {
+          await storage.updateMessage(message.id, {
+            tradeConfirmedBuyer: true,
+          });
+        }
+      }
     }
-    
-    // Get users and product
-    const buyer = await storage.getUser(tradeOffer.buyerId);
-    const seller = await storage.getUser(tradeOffer.sellerId);
-    const product = await storage.getProduct(tradeOffer.productId);
-    
-    if (!buyer || !seller || !product) {
-      return res.status(404).json({ error: 'User or product not found' });
-    }
-    
-    const tradeValue = tradeOffer.offerValue;
-    
-    // Transfer money from buyer's escrow to seller's balance
-    await storage.updateUser(buyer.id, {
-      escrowBalance: buyer.escrowBalance - tradeValue
-    });
-    
-    await storage.updateUser(seller.id, {
-      balance: seller.balance + tradeValue
-    });
-    
-    // Mark the product as sold
-    await storage.updateProduct(product.id, {
-      status: 'sold'
-    });
-    
-    // Update transaction status
-    const transactions = await storage.getUserTransactions(buyer.id);
-    const transaction = transactions.find(t => 
-      t.type === 'trade' && 
-      t.productId === product.id && 
-      t.buyerId === buyer.id && 
-      t.sellerId === seller.id
-    );
-    
-    if (transaction) {
-      const timeline = [...transaction.timeline, {
-        status: 'completed',
-        timestamp: new Date().toISOString(),
-        notes: 'Trade confirmed by buyer, product marked as sold'
-      }];
-      
-      await storage.updateTransaction(transaction.id, {
-        status: 'completed',
-        timeline
+    // Seller confirmation
+    else if (isSeller && !tradeOffer.sellerConfirmed) {
+      await storage.updateTradeOffer(tradeOfferId, {
+        sellerConfirmed: true,
       });
+
+      // Update related message
+      if (tradeOffer.relatedMessageId) {
+        const message = await storage.getMessage(tradeOffer.relatedMessageId);
+        if (message) {
+          await storage.updateMessage(message.id, {
+            tradeConfirmedSeller: true,
+          });
+        }
+      }
+    } else {
+      // User is trying to confirm a side that's already confirmed
+      return res.status(400).json({ error: "You have already confirmed this trade" });
     }
-    
-    return res.status(200).json({
-      tradeOffer: updatedTradeOffer,
-      product
-    });
-  } catch (error) {
-    console.error('Error confirming trade:', error);
-    return res.status(500).json({ error: 'Internal server error' });
+
+    // Fetch the updated trade offer
+    const updatedTradeOffer = await storage.getTradeOffer(tradeOfferId);
+    if (!updatedTradeOffer) {
+      return res.status(404).json({ error: "Trade offer not found after update" });
+    }
+
+    // Check if both parties have confirmed
+    if (updatedTradeOffer.buyerConfirmed && updatedTradeOffer.sellerConfirmed) {
+      // Complete the trade
+      await storage.updateTradeOffer(tradeOfferId, {
+        status: "completed",
+      });
+
+      // Get the product being traded
+      const product = await storage.getProduct(tradeOffer.productId);
+      if (product) {
+        // Update product status to sold
+        await storage.updateProduct(product.id, {
+          status: "sold",
+        });
+
+        // Calculate fee (10% of offer value)
+        const feeAmount = updatedTradeOffer.offerValue * 0.1;
+        const remainingAmount = updatedTradeOffer.offerValue - feeAmount;
+
+        // Create a transaction record
+        const transaction = await storage.createTransaction({
+          buyerId: updatedTradeOffer.buyerId,
+          sellerId: updatedTradeOffer.sellerId,
+          productId: updatedTradeOffer.productId,
+          amount: updatedTradeOffer.offerValue,
+          fee: feeAmount,
+          transactionId: uuidv4(),
+          status: "completed",
+          paymentMethod: "trade",
+        });
+
+        // Add a system message to the conversation
+        await storage.createMessage({
+          senderId: 1, // Admin user ID
+          receiverId: tradeOffer.buyerId,
+          content: `Trade for "${product.title}" has been completed successfully! A 10% fee (${(feeAmount / 1000).toFixed(3)} ₫) was applied.`,
+          isTrade: false,
+        });
+
+        // Notify the seller too
+        await storage.createMessage({
+          senderId: 1, // Admin user ID
+          receiverId: tradeOffer.sellerId,
+          content: `Trade for "${product.title}" has been completed successfully! A 10% fee (${(feeAmount / 1000).toFixed(3)} ₫) was applied.`,
+          isTrade: false,
+        });
+
+        return res.status(200).json({ 
+          tradeOffer: { 
+            ...updatedTradeOffer, 
+            status: "completed" 
+          }, 
+          transaction 
+        });
+      }
+    }
+
+    return res.status(200).json(updatedTradeOffer);
+  } catch (error: any) {
+    console.error("Error confirming trade:", error);
+    return res.status(500).json({ error: error.message });
   }
 }
 
-// Reject a trade offer
+/**
+ * Rejects a trade offer
+ */
 export async function rejectTradeOffer(req: Request, res: Response) {
   try {
     if (!req.isAuthenticated()) {
-      return res.status(401).json({ error: 'Unauthorized' });
+      return res.status(401).json({ error: "Unauthorized" });
     }
-    
-    const { id } = req.params;
-    const tradeOffer = await storage.getTradeOffer(Number(id));
-    
+
+    const tradeOfferId = parseInt(req.params.id);
+    if (isNaN(tradeOfferId)) {
+      return res.status(400).json({ error: "Invalid trade offer ID" });
+    }
+
+    const tradeOffer = await storage.getTradeOffer(tradeOfferId);
     if (!tradeOffer) {
-      return res.status(404).json({ error: 'Trade offer not found' });
+      return res.status(404).json({ error: "Trade offer not found" });
+    }
+
+    // Check if the user is either the buyer or seller
+    const userId = req.user.id;
+    if (tradeOffer.buyerId !== userId && tradeOffer.sellerId !== userId) {
+      return res.status(403).json({ error: "You don't have permission to reject this trade offer" });
+    }
+
+    // Check if the trade offer is in a state that can be rejected
+    if (tradeOffer.status === "completed") {
+      return res.status(400).json({ error: "This trade has already been completed and cannot be rejected" });
     }
     
-    // Both buyer and seller can reject, but only if pending
-    if (tradeOffer.buyerId !== req.user!.id && tradeOffer.sellerId !== req.user!.id) {
-      return res.status(403).json({ error: 'Forbidden' });
+    if (tradeOffer.status === "rejected") {
+      return res.status(400).json({ error: "This trade has already been rejected" });
     }
-    
-    if (tradeOffer.status !== 'pending') {
-      return res.status(400).json({ error: `Cannot reject a trade that is ${tradeOffer.status}` });
-    }
-    
-    // Update the trade offer
-    const updatedTradeOffer = await storage.updateTradeOffer(tradeOffer.id, {
-      status: 'rejected'
+
+    // Update the trade offer status
+    const updatedTradeOffer = await storage.updateTradeOffer(tradeOfferId, {
+      status: "rejected",
     });
-    
+
+    // Update the related message if it exists
+    if (tradeOffer.relatedMessageId) {
+      const message = await storage.getMessage(tradeOffer.relatedMessageId);
+      if (message) {
+        await storage.updateMessage(message.id, {
+          tradeConfirmedBuyer: false,
+          tradeConfirmedSeller: false,
+        });
+
+        // Add a system message to the conversation
+        const isRejectedByBuyer = userId === tradeOffer.buyerId;
+        const receiverId = isRejectedByBuyer ? tradeOffer.sellerId : tradeOffer.buyerId;
+        
+        await storage.createMessage({
+          senderId: userId,
+          receiverId,
+          content: `Trade offer has been rejected by ${isRejectedByBuyer ? 'buyer' : 'seller'}.`,
+          isTrade: false,
+        });
+      }
+    }
+
     return res.status(200).json(updatedTradeOffer);
-  } catch (error) {
-    console.error('Error rejecting trade offer:', error);
-    return res.status(500).json({ error: 'Internal server error' });
+  } catch (error: any) {
+    console.error("Error rejecting trade offer:", error);
+    return res.status(500).json({ error: error.message });
   }
 }

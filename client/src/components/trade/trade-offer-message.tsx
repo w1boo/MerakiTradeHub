@@ -7,7 +7,39 @@ import { TradeButton } from "./trade-button";
 import { apiRequest } from "@/lib/queryClient";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
-import { TradeOffer, Product, User } from "@/types";
+
+// Define interfaces for our component
+interface TradeOffer {
+  id: number;
+  buyerId: number;
+  sellerId: number;
+  productId: number | null;
+  offerValue: number;
+  status: string;
+  buyerConfirmed: boolean;
+  sellerConfirmed: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+interface Product {
+  id: number;
+  title: string;
+  description: string;
+  price: number;
+  sellerId: number;
+  categoryId: number;
+  images: string[];
+  status: string;
+  createdAt: Date;
+}
+
+interface User {
+  id: number;
+  username: string;
+  email?: string;
+  role: string;
+}
 
 interface TradeOfferMessageProps {
   messageId: number;

@@ -1,6 +1,21 @@
 import { useAuth } from "@/hooks/use-auth";
-import { Message } from "@/types";
 import { TradeOfferMessage } from "./trade-offer-message";
+
+// Define our own Message interface to include tradeOfferId
+interface Message {
+  id: number;
+  senderId: number;
+  receiverId: number;
+  content: string;
+  conversationId: number;
+  isRead: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  images?: string[];
+  isTrade?: boolean;
+  tradeOfferId?: number | null;
+  productId?: number | null;
+}
 
 interface TradeMessageWrapperProps {
   message: Message;
