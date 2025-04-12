@@ -71,6 +71,13 @@ export default function ChatInterface({ conversationId }: ChatInterfaceProps) {
     sendMessageMutation.mutate({
       receiverId: conversationData.otherUser.id,
       content: message
+    }, {
+      onSuccess: () => {
+        // Invalidate both queries to refresh messages
+        queryClient.invalidateQueries({ queryKey: ["/api/conversations", selectedConversation] });
+        queryClient.invalidateQueries({ queryKey: ["/api/conversations"] });
+        setMessage(""); // Clear input after sending
+      }
     });
   };
   
