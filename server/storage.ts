@@ -117,11 +117,7 @@ export class MemStorage implements IStorage {
     const categories = [
       { name: "Electronics", icon: "ri-computer-line", color: "primary" },
       { name: "Fashion", icon: "ri-t-shirt-line", color: "secondary" },
-      { name: "Home & Garden", icon: "ri-home-line", color: "accent" },
-      { name: "Sports", icon: "ri-basketball-line", color: "primary" },
-      { name: "Collectibles", icon: "ri-gallery-line", color: "secondary" },
-      { name: "Books & Media", icon: "ri-book-open-line", color: "accent" },
-      { name: "Toys & Games", icon: "ri-gamepad-line", color: "primary" }
+      { name: "Books & Media", icon: "ri-book-open-line", color: "accent" }
     ];
     
     categories.forEach(category => {
