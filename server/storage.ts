@@ -184,8 +184,14 @@ export class MemStorage implements IStorage {
   }
   
   async getProductsByCategory(categoryId: number): Promise<Product[]> {
-    return Array.from(this.products.values())
-      .filter(product => product.categoryId === categoryId);
+    console.log('Filtering products by categoryId:', categoryId);
+    const allProducts = Array.from(this.products.values());
+    console.log('All products:', JSON.stringify(allProducts));
+    
+    return allProducts.filter(product => {
+      console.log(`Product ${product.id} categoryId:`, product.categoryId, 'Comparing with:', categoryId, 'Result:', product.categoryId === categoryId);
+      return product.categoryId === categoryId;
+    });
   }
   
   async getProductsBySeller(sellerId: number): Promise<Product[]> {
