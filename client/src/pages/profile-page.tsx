@@ -310,7 +310,7 @@ export default function ProfilePage() {
                         </CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <p className="text-3xl font-bold">{userProducts?.length || 0}</p>
+                        <p className="text-3xl font-bold">{Array.isArray(userProducts) ? userProducts.length : 0}</p>
                       </CardContent>
                     </Card>
 

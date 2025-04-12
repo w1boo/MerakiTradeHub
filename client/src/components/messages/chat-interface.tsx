@@ -86,6 +86,8 @@ export default function ChatInterface({ conversationId }: ChatInterfaceProps) {
   // Send message mutation
   const sendMessageMutation = useMutation({
     mutationFn: async (data: { content: string; receiverId: number; isTrade?: boolean; productId?: number; images?: string[] }) => {
+      console.log('Sending message with data:', JSON.stringify(data));
+      
       const res = await apiRequest('POST', '/api/messages', data);
       
       if (!res.ok) {
@@ -112,19 +114,53 @@ export default function ChatInterface({ conversationId }: ChatInterfaceProps) {
 
   // Send message handler
   const handleSendMessage = () => {
-    if (!user || !conversationData || !message.trim()) return;
+    if (!user || !message.trim()) return;
     
-    // Check if otherUser exists and has an id to prevent error
-    if (!conversationData.otherUser || typeof conversationData.otherUser.id === 'undefined') {
-      console.error('Other user data is missing in conversation');
+    // Handle the case where conversationData might not be fully loaded yet
+    if (!conversationData) {
+      console.error('Conversation data is not available');
       toast({
         title: 'Error sending message',
-        description: 'Recipient information is missing. Please try again or reload the page.',
+        description: 'Conversation data is loading. Please try again in a moment.',
         variant: 'destructive',
       });
       return;
     }
     
+    // Check if otherUser exists and has an id to prevent error
+    if (!conversationData.otherUser || typeof conversationData.otherUser.id === 'undefined') {
+      console.error('Other user data is missing in conversation:', JSON.stringify(conversationData));
+      
+      // Get the receiver from conversation object as a fallback
+      let receiverId: number | null = null;
+      
+      if (conversationData.conversation) {
+        const userId = user.id;
+        // Determine the other user in the conversation
+        if (conversationData.conversation.user1Id === userId) {
+          receiverId = conversationData.conversation.user2Id;
+        } else if (conversationData.conversation.user2Id === userId) {
+          receiverId = conversationData.conversation.user1Id;
+        }
+      }
+      
+      if (receiverId) {
+        console.log('Using fallback receiver ID:', receiverId);
+        sendMessageMutation.mutate({
+          content: message,
+          receiverId: receiverId,
+        });
+      } else {
+        toast({
+          title: 'Error sending message',
+          description: 'Recipient information is missing. Please try again or reload the page.',
+          variant: 'destructive',
+        });
+      }
+      return;
+    }
+    
+    // Normal case - we have the other user information
     sendMessageMutation.mutate({
       content: message,
       receiverId: conversationData.otherUser.id,
