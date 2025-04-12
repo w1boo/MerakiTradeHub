@@ -196,3 +196,38 @@ export type InsertDeposit = z.infer<typeof insertDepositSchema>;
 
 export type Withdrawal = typeof withdrawals.$inferSelect;
 export type InsertWithdrawal = z.infer<typeof insertWithdrawalSchema>;
+
+// Direct Trade Offers Schema
+export const directTradeOffers = pgTable("direct_trade_offers", {
+  id: serial("id").primaryKey(),
+  buyerId: integer("buyer_id").notNull().references(() => users.id),
+  sellerId: integer("seller_id").notNull().references(() => users.id),
+  productId: integer("product_id").notNull().references(() => products.id),
+  offeredItemName: text("offered_item_name").notNull(),
+  offeredItemDescription: text("offered_item_description").notNull(),
+  offeredItemValue: integer("offered_item_value").notNull(),
+  offeredItemImages: text("offered_item_images").array().notNull(),
+  notes: text("notes"),
+  status: text("status").notNull().default("pending"),
+  buyerConfirmed: boolean("buyer_confirmed").notNull().default(false),
+  sellerConfirmed: boolean("seller_confirmed").notNull().default(false),
+  escrowAmount: integer("escrow_amount").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertDirectTradeOfferSchema = createInsertSchema(directTradeOffers).pick({
+  buyerId: true,
+  sellerId: true,
+  productId: true,
+  offeredItemName: true,
+  offeredItemDescription: true,
+  offeredItemValue: true,
+  offeredItemImages: true,
+  notes: true,
+  status: true,
+  escrowAmount: true,
+});
+
+export type DirectTradeOffer = typeof directTradeOffers.$inferSelect;
+export type InsertDirectTradeOffer = z.infer<typeof insertDirectTradeOfferSchema>;

@@ -65,6 +65,14 @@ export interface IStorage {
   createWithdrawal(withdrawal: InsertWithdrawal): Promise<Withdrawal>;
   getUserWithdrawals(userId: number): Promise<Withdrawal[]>;
   updateWithdrawal(id: number, updates: Partial<Withdrawal>): Promise<Withdrawal | undefined>;
+  
+  // Direct Trade Offer methods
+  createDirectTradeOffer(offer: InsertDirectTradeOffer): Promise<DirectTradeOffer>;
+  getDirectTradeOffer(id: number): Promise<DirectTradeOffer | undefined>;
+  getUserDirectTradeOffers(userId: number): Promise<DirectTradeOffer[]>;
+  getPendingDirectTradeOffersForUser(userId: number): Promise<DirectTradeOffer[]>;
+  getProductDirectTradeOffers(productId: number): Promise<DirectTradeOffer[]>;
+  updateDirectTradeOffer(id: number, updates: Partial<DirectTradeOffer>): Promise<DirectTradeOffer | undefined>;
 
   // Session store
   sessionStore: any; // Use 'any' to avoid SessionStore type errors
@@ -79,6 +87,7 @@ export class MemStorage implements IStorage {
   private conversations: Map<number, Conversation>;
   private deposits: Map<number, Deposit>;
   private withdrawals: Map<number, Withdrawal>;
+  private directTradeOffers: Map<number, DirectTradeOffer>;
 
   currentUserId: number;
   currentProductId: number;
@@ -88,6 +97,7 @@ export class MemStorage implements IStorage {
   currentConversationId: number;
   currentDepositId: number;
   currentWithdrawalId: number;
+  currentDirectTradeOfferId: number;
 
   sessionStore: any; // Changed from session.SessionStore to any
 
@@ -100,6 +110,7 @@ export class MemStorage implements IStorage {
     this.conversations = new Map();
     this.deposits = new Map();
     this.withdrawals = new Map();
+    this.directTradeOffers = new Map();
 
     this.currentUserId = 1;
     this.currentProductId = 1;
@@ -109,6 +120,7 @@ export class MemStorage implements IStorage {
     this.currentConversationId = 1;
     this.currentDepositId = 1;
     this.currentWithdrawalId = 1;
+    this.currentDirectTradeOfferId = 1;
 
     this.sessionStore = new MemoryStore({
       checkPeriod: 86400000,
@@ -545,6 +557,66 @@ export class MemStorage implements IStorage {
     const updatedWithdrawal = { ...withdrawal, ...updates };
     this.withdrawals.set(id, updatedWithdrawal);
     return updatedWithdrawal;
+  }
+
+  // Direct Trade Offer methods
+  async createDirectTradeOffer(offer: InsertDirectTradeOffer): Promise<DirectTradeOffer> {
+    const id = this.currentDirectTradeOfferId++;
+    const timestamp = new Date();
+    const newOffer: DirectTradeOffer = {
+      id,
+      buyerId: offer.buyerId,
+      sellerId: offer.sellerId,
+      productId: offer.productId,
+      offeredItemName: offer.offeredItemName,
+      offeredItemDescription: offer.offeredItemDescription,
+      offeredItemValue: offer.offeredItemValue,
+      offeredItemImages: offer.offeredItemImages,
+      notes: offer.notes || null,
+      status: offer.status || 'pending',
+      buyerConfirmed: false,
+      sellerConfirmed: false,
+      escrowAmount: offer.escrowAmount,
+      createdAt: timestamp,
+      updatedAt: timestamp
+    };
+    this.directTradeOffers.set(id, newOffer);
+    return newOffer;
+  }
+
+  async getDirectTradeOffer(id: number): Promise<DirectTradeOffer | undefined> {
+    return this.directTradeOffers.get(id);
+  }
+
+  async getUserDirectTradeOffers(userId: number): Promise<DirectTradeOffer[]> {
+    return Array.from(this.directTradeOffers.values())
+      .filter(offer => offer.buyerId === userId || offer.sellerId === userId)
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  }
+
+  async getPendingDirectTradeOffersForUser(userId: number): Promise<DirectTradeOffer[]> {
+    return Array.from(this.directTradeOffers.values())
+      .filter(offer => (offer.sellerId === userId) && offer.status === 'pending')
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  }
+
+  async getProductDirectTradeOffers(productId: number): Promise<DirectTradeOffer[]> {
+    return Array.from(this.directTradeOffers.values())
+      .filter(offer => offer.productId === productId)
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  }
+
+  async updateDirectTradeOffer(id: number, updates: Partial<DirectTradeOffer>): Promise<DirectTradeOffer | undefined> {
+    const offer = await this.getDirectTradeOffer(id);
+    if (!offer) return undefined;
+
+    const updatedOffer = {
+      ...offer,
+      ...updates,
+      updatedAt: new Date()
+    };
+    this.directTradeOffers.set(id, updatedOffer);
+    return updatedOffer;
   }
 }
 
