@@ -10,6 +10,7 @@ import MessagingPage from "@/pages/messaging-page";
 import ProfilePage from "@/pages/profile-page";
 import ListingFormPage from "@/pages/listing-form-page";
 import TransactionsPage from "@/pages/transactions-page";
+import TradeOffersPage from "@/pages/trade-offers-page";
 import AdminPage from "@/pages/admin-page";
 import CategoryPage from "@/pages/category-page";
 import { AuthProvider } from "@/hooks/use-auth";
@@ -28,6 +29,7 @@ function Router() {
       <ProtectedRoute path="/listing/new" component={ListingFormPage} />
       <ProtectedRoute path="/listing/edit/:id" component={ListingFormPage} />
       <ProtectedRoute path="/transactions" component={TransactionsPage} />
+      <ProtectedRoute path="/trade-offers" component={TradeOffersPage} />
       <AdminRoute path="/admin" component={AdminPage} />
       <Route component={NotFound} />
     </Switch>

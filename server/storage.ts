@@ -371,6 +371,7 @@ export class MemStorage implements IStorage {
       isRead: false,
       isTrade: message.isTrade || false,
       productId: message.productId || null,
+      tradeDetails: message.tradeDetails || null,
       tradeConfirmedBuyer: message.tradeConfirmedBuyer || false,
       tradeConfirmedSeller: message.tradeConfirmedSeller || false,
       createdAt: timestamp

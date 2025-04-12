@@ -1021,7 +1021,6 @@ app.get("/api/admin/transactions", ensureAdmin, async (req, res) => {
         tradeDetails: JSON.stringify(tradeDetails),
         tradeConfirmedBuyer: false,
         tradeConfirmedSeller: false,
-        isRead: false,
         images: offerItemImages || null
       });
       

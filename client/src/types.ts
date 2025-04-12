@@ -62,6 +62,7 @@ export interface Message {
   isRead: boolean;
   isTrade: boolean;
   productId: number | null;
+  tradeDetails: string | null;
   tradeConfirmedBuyer: boolean;
   tradeConfirmedSeller: boolean;
   createdAt: Date;
