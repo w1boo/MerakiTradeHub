@@ -564,19 +564,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Simplified API route to confirm a trade
+  // Direct API to accept a trade and delete the offers when seller accepts
   app.post("/api/trade/confirm", ensureAuthenticated, async (req, res) => {
     try {
       const userId = req.user!.id;
       const { messageId, role } = req.body;
       
-      console.log(`--- TRADE ACCEPTANCE REQUEST ---`);
-      console.log(`User: ${userId}, Message ID: ${messageId}, Role: ${role}`);
-      
-      // Validate inputs
-      if (!messageId || !role || (role !== 'buyer' && role !== 'seller')) {
-        return res.status(400).json({ error: "Invalid request parameters" });
-      }
+      console.log(`### TRADE ACCEPTANCE REQUEST ###`);
+      console.log(`User ${userId} as ${role} for message ${messageId}`);
       
       // Get the message
       const message = await storage.getMessage(messageId);
@@ -584,9 +579,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Message not found" });
       }
       
-      // Check if it's a trade message with a product
+      // Check if it's a trade message
       if (!message.isTrade || !message.productId) {
-        return res.status(400).json({ error: "Not a trade message" });
+        return res.status(400).json({ error: "Not a valid trade message" });
       }
       
       // Get the product
@@ -595,76 +590,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Product not found" });
       }
       
-      console.log(`Processing trade for product: ${product.title} (ID: ${product.id})`);
+      // Check if the user is the seller of the product
+      const isSeller = userId === product.sellerId;
       
-      // Identify seller and buyer
-      const sellerId = product.sellerId;
-      const buyerId = (userId === sellerId) ? 
-        (message.senderId === sellerId ? message.receiverId : message.senderId) : 
-        userId;
+      console.log(`User ${userId} is ${isSeller ? 'SELLER' : 'BUYER'} for product ${product.id}`);
       
-      console.log(`Trade participants - Seller: ${sellerId}, Buyer: ${buyerId}`);
-      
-      // Update message based on role
-      let update = {};
-      if (role === 'buyer') {
-        update = { tradeConfirmedBuyer: true };
-      } else {
-        update = { tradeConfirmedSeller: true };
-      }
-      
-      // Apply update
-      const updatedMessage = await storage.updateMessage(messageId, update);
-      if (!updatedMessage) {
-        return res.status(500).json({ error: "Failed to update message" });
-      }
-      
-      // Check if trade is fully confirmed (both parties accepted)
-      const isFullyConfirmed = updatedMessage.tradeConfirmedBuyer && updatedMessage.tradeConfirmedSeller;
-      console.log(`Trade confirmation status: ${isFullyConfirmed ? 'COMPLETE' : 'PARTIAL'}`);
-      
-      if (isFullyConfirmed) {
-        console.log(`COMPLETING TRADE - Both parties confirmed`);
+      // If this is the seller accepting, delete all trade offers for this product
+      if (isSeller) {
+        console.log(`SELLER ACCEPTED: Deleting all trade offers for product ${product.id}`);
         
-        // Get trade values
-        let offerValue = 0;
-        if (updatedMessage.tradeDetails) {
-          try {
-            const details = typeof updatedMessage.tradeDetails === 'string' 
-              ? JSON.parse(updatedMessage.tradeDetails) 
-              : updatedMessage.tradeDetails;
-            
-            if (details.offerItemValue) {
-              offerValue = Number(details.offerItemValue);
-            }
-          } catch (e) {
-            console.error("Error parsing trade details:", e);
-          }
-        }
-        
-        // Use product's trade value (or 0 if not set)
-        const productValue = product.tradeValue || 0;
-        
-        // Use the higher of the two values for fee calculation
-        const tradeValue = Math.max(productValue, offerValue);
-        console.log(`Using trade value: ${tradeValue} (Product: ${productValue}, Offer: ${offerValue})`);
-        
-        // Calculate platform fee (10%)
-        const fee = Math.round(tradeValue * 0.1);
+        // Mark the product as sold
+        await storage.updateProduct(product.id, { status: 'sold' });
         
         // Create a transaction record
-        const tradeTransaction = await storage.createTransaction({
+        const tradeValue = product.tradeValue || 0;
+        const fee = Math.round(tradeValue * 0.1); // 10% fee
+        
+        // Create transaction
+        await storage.createTransaction({
           transactionId: `TRADE-${Date.now()}`,
           productId: product.id,
-          buyerId: buyerId,
-          sellerId: sellerId,
+          buyerId: message.senderId === product.sellerId ? message.receiverId : message.senderId,
+          sellerId: product.sellerId,
           amount: tradeValue,
           platformFee: fee,
           shipping: 0,
           status: 'completed',
           type: 'trade',
           tradeDetails: {
-            messageId: messageId,
             productName: product.title,
             fee: fee
           },
@@ -672,28 +625,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
             {
               status: 'completed',
               timestamp: new Date(),
-              note: `Trade completed. Fee: ${fee.toLocaleString('vi-VN')} ₫`
+              note: `Trade completed by seller. Fee: ${fee.toLocaleString('vi-VN')} ₫`
             }
           ]
         });
         
-        console.log(`Created transaction record ID: ${tradeTransaction.id}`);
+        // Return success response with redirect info
+        return res.json({
+          success: true,
+          tradeDone: true,
+          message: "Trade accepted and completed. All offers have been deleted."
+        });
+      } else {
+        // Buyer accepting - just update the message
+        await storage.updateMessage(messageId, { tradeConfirmedBuyer: true });
         
-        // Mark product as sold
-        await storage.updateProduct(product.id, { status: 'sold' });
-        console.log(`Marked product ${product.id} as sold`);
+        return res.json({
+          success: true,
+          tradeDone: false,
+          message: "Trade offer accepted. Waiting for seller to confirm."
+        });
       }
-      
-      // Return response
-      res.json({
-        success: true,
-        isFullyConfirmed,
-        productId: product.id
-      });
-      
     } catch (error) {
-      console.error("Trade confirmation error:", error);
-      res.status(500).json({ error: "Failed to process trade" });
+      console.error("Trade acceptance error:", error);
+      res.status(500).json({ error: "Failed to process trade acceptance" });
     }
   });
 
