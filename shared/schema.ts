@@ -205,13 +205,11 @@ export const directTradeOffers = pgTable("direct_trade_offers", {
   productId: integer("product_id").notNull().references(() => products.id),
   offeredItemName: text("offered_item_name").notNull(),
   offeredItemDescription: text("offered_item_description").notNull(),
-  offeredItemValue: integer("offered_item_value").notNull(),
+  offeredItemValue: doublePrecision("offered_item_value").notNull(),
   offeredItemImages: text("offered_item_images").array().notNull(),
   notes: text("notes"),
   status: text("status").notNull().default("pending"),
-  buyerConfirmed: boolean("buyer_confirmed").notNull().default(false),
-  sellerConfirmed: boolean("seller_confirmed").notNull().default(false),
-  escrowAmount: integer("escrow_amount").notNull(),
+  escrowAmount: doublePrecision("escrow_amount"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
@@ -227,6 +225,7 @@ export const insertDirectTradeOfferSchema = createInsertSchema(directTradeOffers
   notes: true,
   status: true,
   escrowAmount: true,
+  createdAt: true,
 });
 
 export type DirectTradeOffer = typeof directTradeOffers.$inferSelect;
