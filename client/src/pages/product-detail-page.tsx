@@ -535,7 +535,7 @@ export default function ProductDetailPage() {
                       <div className="space-y-2">
                         <div className="flex justify-between">
                           <span className="text-neutral-600">Shipping Cost</span>
-                          <span className="font-medium">$8.00</span>
+                          <span className="font-medium">50,000 ₫</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-neutral-600">Shipping From</span>
@@ -601,20 +601,20 @@ export default function ProductDetailPage() {
             <div className="space-y-2">
               <div className="flex justify-between">
                 <span className="text-neutral-600">Item Price</span>
-                <span className="font-medium">${product.price?.toFixed(2)}</span>
+                <span className="font-medium">{product.price?.toLocaleString('vi-VN')} ₫</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-neutral-600">Platform Fee (15%)</span>
-                <span className="font-medium">${(product.price ? product.price * 0.15 : 0).toFixed(2)}</span>
+                <span className="font-medium">{(product.price ? product.price * 0.15 : 0).toLocaleString('vi-VN')} ₫</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-neutral-600">Shipping</span>
-                <span className="font-medium">$8.00</span>
+                <span className="font-medium">50,000 ₫</span>
               </div>
               <Separator />
               <div className="flex justify-between font-bold">
                 <span>Total</span>
-                <span>${(product.price ? product.price + 8 : 0).toFixed(2)}</span>
+                <span>{(product.price ? product.price + 50000 : 0).toLocaleString('vi-VN')} ₫</span>
               </div>
             </div>
           </div>
@@ -662,7 +662,7 @@ export default function ProductDetailPage() {
                   <h3 className="font-medium">{product.title}</h3>
                   <p className="text-sm text-neutral-600">
                     {product.tradeValue 
-                      ? `Suggested Trade Value: $${product.tradeValue.toFixed(2)}` 
+                      ? `Suggested Trade Value: ${product.tradeValue.toLocaleString('vi-VN')} ₫` 
                       : "No suggested trade value"}
                   </p>
                 </div>
@@ -674,13 +674,13 @@ export default function ProductDetailPage() {
                 <div>
                   <Label htmlFor="tradeValue">Your Trade Offer Value</Label>
                   <div className="relative mt-1">
-                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2">$</span>
+                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2">₫</span>
                     <Input 
                       id="tradeValue" 
                       name="tradeValue" 
                       type="number" 
-                      min="1" 
-                      step="0.01" 
+                      min="1000" 
+                      step="1000" 
                       className="pl-8" 
                       defaultValue={product.tradeValue?.toString() || ""}
                       required
