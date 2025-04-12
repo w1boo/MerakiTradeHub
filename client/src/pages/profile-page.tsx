@@ -341,46 +341,6 @@ export default function ProfilePage() {
                 </div>
               </TabsContent>
 
-              <TabsContent value="listings" className="p-6">
-                <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-xl font-semibold">My Listed Items</h2>
-                  <Button asChild>
-                    <a href="/listing/new">
-                      <Icon icon="ri-add-line mr-1" />
-                      New Listing
-                    </a>
-                  </Button>
-                </div>
-
-                {isLoadingProducts ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                    {[...Array(4)].map((_, i) => (
-                      <Skeleton key={i} className="h-80 w-full" />
-                    ))}
-                  </div>
-                ) : productsError ? (
-                  <div className="bg-red-50 text-red-500 p-4 rounded-lg">
-                    Error loading your listings. Please try again.
-                  </div>
-                ) : userProducts && userProducts.length > 0 ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                    {userProducts.map((product) => (
-                      <ProductCard key={product.id} product={product} />
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center p-8 bg-neutral-50 rounded-lg">
-                    <Icon icon="ri-shopping-bag-line text-4xl text-neutral-400 mb-2" />
-                    <h3 className="text-lg font-medium mb-2">No listings yet</h3>
-                    <p className="text-neutral-600 mb-4">
-                      You haven't listed any items for sale or trade yet.
-                    </p>
-                    <Button asChild>
-                      <a href="/listing/new">Create Your First Listing</a>
-                    </Button>
-                  </div>
-                )}
-              </TabsContent>
 
               <TabsContent value="finances" className="p-6">
                 <div className="mb-6">
