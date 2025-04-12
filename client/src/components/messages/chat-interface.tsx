@@ -37,6 +37,12 @@ export default function ChatInterface({ conversationId }: ChatInterfaceProps) {
     queryKey: ["/api/conversations", selectedConversation],
     enabled: !!selectedConversation,
   });
+  
+  // Fetch product data for trade messages
+  const { data: productsData } = useQuery<Record<number, any>>({
+    queryKey: ["/api/products/trade-messages"],
+    enabled: !!conversationData?.messages?.some(m => m.isTrade && m.productId),
+  });
 
   // Send message mutation
   const sendMessageMutation = useMutation({
@@ -217,31 +223,61 @@ export default function ChatInterface({ conversationId }: ChatInterfaceProps) {
                     </div>
                   ))
                 ) : conversationData.messages && conversationData.messages.length > 0 ? (
-                  conversationData.messages.map((message) => (
-                    <div 
-                      key={message.id} 
-                      className={`flex items-end ${message.senderId === user?.id ? 'justify-end' : ''}`}
-                    >
-                      {message.senderId !== user?.id && (
-                        <Avatar className="w-8 h-8 mr-2">
-                          <AvatarImage src={conversationData.otherUser?.avatar} />
-                          <AvatarFallback>{getUserInitials(conversationData.otherUser)}</AvatarFallback>
-                        </Avatar>
-                      )}
+                  conversationData.messages.map((message) => {
+                    // If it's a trade message, render the special trade component
+                    if (message.isTrade && message.productId && user) {
+                      const product = productsData?.[message.productId];
+                      
+                      if (product) {
+                        // Import dynamically to avoid circular dependencies
+                        const TradeMessage = require('./trade-message').default;
+                        
+                        return (
+                          <div 
+                            key={message.id} 
+                            className={`flex flex-col ${message.senderId === user?.id ? 'items-end' : 'items-start'} w-full`}
+                          >
+                            <TradeMessage 
+                              message={message}
+                              product={product}
+                              currentUser={user}
+                              otherUser={conversationData.otherUser}
+                            />
+                            <span className={`text-xs text-neutral-500 mt-1 mx-2`}>
+                              {formatMessageTime(message.createdAt)}
+                            </span>
+                          </div>
+                        );
+                      }
+                    }
+                    
+                    // Regular message rendering
+                    return (
                       <div 
-                        className={`${
-                          message.senderId === user?.id 
-                            ? 'bg-primary text-white rounded-2xl rounded-br-none' 
-                            : 'bg-neutral-100 rounded-2xl rounded-bl-none'
-                        } py-2 px-4 max-w-[70%]`}
+                        key={message.id} 
+                        className={`flex items-end ${message.senderId === user?.id ? 'justify-end' : ''}`}
                       >
-                        <p className="text-sm">{message.content}</p>
-                        <span className={`text-xs ${message.senderId === user?.id ? 'text-white/70' : 'text-neutral-500'} mt-1 block`}>
-                          {formatMessageTime(message.createdAt)}
-                        </span>
+                        {message.senderId !== user?.id && (
+                          <Avatar className="w-8 h-8 mr-2">
+                            <AvatarImage src={conversationData.otherUser?.avatar} />
+                            <AvatarFallback>{getUserInitials(conversationData.otherUser)}</AvatarFallback>
+                          </Avatar>
+                        )}
+                        <div 
+                          className={`${
+                            message.senderId === user?.id 
+                              ? 'bg-primary text-white rounded-2xl rounded-br-none' 
+                              : 'bg-neutral-100 rounded-2xl rounded-bl-none'
+                          } py-2 px-4 max-w-[70%]`}
+                        >
+                          <p className="text-sm">{message.content}</p>
+                          <span className={`text-xs ${message.senderId === user?.id ? 'text-white/70' : 'text-neutral-500'} mt-1 block`}>
+                            {formatMessageTime(message.createdAt)}
+                          </span>
+                        </div>
                       </div>
-                    </div>
-                  ))
+                    );
+                  })
                 ) : (
                   <div className="flex flex-col items-center justify-center h-full text-neutral-500 py-8">
                     <Icon icon="ri-chat-3-line text-4xl mb-2" />
