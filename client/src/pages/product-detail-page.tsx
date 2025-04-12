@@ -30,6 +30,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { AddFundsModal } from "@/components/transactions/add-funds-modal";
 import TradeOfferModal from "@/components/transactions/trade-offer-modal";
+import DirectTradeModal from "@/components/transactions/direct-trade-modal";
 import {
   Dialog,
   DialogContent,

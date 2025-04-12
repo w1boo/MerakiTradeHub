@@ -29,9 +29,10 @@ interface TradeOfferFormProps {
   productId: number;
   sellerId: number;
   productTitle: string;
+  onSuccess?: () => void;
 }
 
-export function TradeOfferForm({ productId, sellerId, productTitle }: TradeOfferFormProps) {
+export function TradeOfferForm({ productId, sellerId, productTitle, onSuccess }: TradeOfferFormProps) {
   const [step, setStep] = useState<"form" | "confirm">("form");
   const [formData, setFormData] = useState<FormValues | null>(null);
   
