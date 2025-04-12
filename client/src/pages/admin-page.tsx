@@ -731,9 +731,9 @@ export default function AdminPage() {
                               <Badge
                                 variant={
                                   transaction.status === "completed"
-                                    ? "success"
+                                    ? "outline"
                                     : transaction.status === "pending"
-                                    ? "warning"
+                                    ? "secondary"
                                     : transaction.status === "processing"
                                     ? "outline"
                                     : "destructive"
@@ -869,9 +869,9 @@ export default function AdminPage() {
                   <Badge
                     variant={
                       selectedDeposit.status === "completed"
-                        ? "success"
+                        ? "outline"
                         : selectedDeposit.status === "pending"
-                        ? "warning"
+                        ? "secondary"
                         : "destructive"
                     }
                     className="mt-1"
@@ -1050,9 +1050,9 @@ export default function AdminPage() {
                     <Badge
                       variant={
                         selectedTransaction.status === "completed"
-                          ? "success"
+                          ? "outline"
                           : selectedTransaction.status === "pending"
-                          ? "warning"
+                          ? "secondary"
                           : selectedTransaction.status === "processing"
                           ? "outline"
                           : "destructive"
