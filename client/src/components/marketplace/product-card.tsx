@@ -82,7 +82,7 @@ export default function ProductCard({ product }: ProductCardProps) {
           )}
           
           {product.allowTrade && (
-            <Button className="flex-1 border border-primary text-primary hover:bg-primary/5" asChild>
+            <Button className="flex-1 border border-primary text-white bg-primary hover:bg-primary/90" asChild>
               <Link href={`/products/${product.id}?action=trade`}>
                 {product.allowBuy ? "Offer Trade" : "Trade"}
               </Link>
