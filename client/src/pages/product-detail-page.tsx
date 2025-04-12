@@ -643,9 +643,9 @@ export default function ProductDetailPage() {
         </DialogContent>
       </Dialog>
       
-      {/* Enhanced Trade Offer Modal */}
+      {/* Enhanced Direct Trade Offer Modal */}
       {user && product && (
-        <TradeOfferModal
+        <DirectTradeModal
           isOpen={isTradeModalOpen}
           onClose={() => setTradeModalOpen(false)}
           product={product}

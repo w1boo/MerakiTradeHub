@@ -93,6 +93,7 @@ export function TradeOfferForm({ productId, sellerId, productTitle, onSuccess }:
               form.reset();
               setStep("form");
               setFormData(null);
+              if (onSuccess) onSuccess();
             }}
           />
         </CardFooter>

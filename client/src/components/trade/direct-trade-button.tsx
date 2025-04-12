@@ -1,10 +1,9 @@
 import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { TradeOffer } from "@shared/schema";
-import { Loader2 } from "lucide-react";
+// Use a simple span for the icon instead of the Icon component
+// since we don't have access to it
 
 interface DirectTradeButtonProps {
   productId: number;
@@ -12,7 +11,6 @@ interface DirectTradeButtonProps {
   offerValue: number;
   offerItemName: string;
   offerItemDescription: string;
-  offerItemImages?: string[];
   onSuccess?: () => void;
 }
 
@@ -22,83 +20,71 @@ export function DirectTradeButton({
   offerValue,
   offerItemName,
   offerItemDescription,
-  offerItemImages = [],
-  onSuccess,
+  onSuccess
 }: DirectTradeButtonProps) {
   const { toast } = useToast();
-  const [isSubmitted, setIsSubmitted] = useState(false);
-
-  const directTradeMutation = useMutation({
-    mutationFn: async () => {
-      try {
-        const response = await apiRequest("POST", "/api/direct-trade", {
-          productId,
-          sellerId,
-          offerValue,
-          offerItemName,
-          offerItemDescription,
-          offerItemImages,
-          isDirect: true,
-        });
-        
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || "Failed to submit trade offer");
-        }
-        
-        return await response.json() as TradeOffer;
-      } catch (error: any) {
-        console.error("Trade offer error:", error);
-        throw new Error(error.message || "Failed to submit trade offer");
-      }
-    },
-    onSuccess: (data) => {
-      toast({
-        title: "Trade Offer Sent",
-        description: "Your trade offer has been successfully sent to the seller.",
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  const handleSubmit = async () => {
+    if (isSubmitting) return;
+    
+    setIsSubmitting(true);
+    try {
+      // Create a direct trade offer using the direct trade API
+      const res = await apiRequest("POST", "/api/direct-trades", {
+        productId,
+        sellerId,
+        offerValue,
+        offerItemName,
+        offerItemDescription,
+        status: "pending",
       });
       
-      queryClient.invalidateQueries({ queryKey: ["/api/direct-trade"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Failed to create trade offer");
+      }
       
-      setIsSubmitted(true);
+      // Get the response data
+      const data = await res.json();
       
+      // Show success toast
+      toast({
+        title: "Trade Offer Sent",
+        description: "Your trade offer has been sent to the seller.",
+      });
+      
+      // Invalidate relevant queries to refresh the UI
+      queryClient.invalidateQueries({ queryKey: ["/api/direct-trades"] });
+      
+      // Call success callback if provided
       if (onSuccess) {
         onSuccess();
       }
-    },
-    onError: (error: Error) => {
+    } catch (error: any) {
       toast({
-        title: "Trade Offer Failed",
-        description: error.message || "Failed to submit trade offer. Please try again.",
+        title: "Error Sending Trade Offer",
+        description: error.message || "There was a problem sending your trade offer.",
         variant: "destructive",
       });
-    },
-  });
-
-  if (isSubmitted) {
-    return (
-      <Button variant="outline" disabled className="w-full">
-        Offer Submitted
-      </Button>
-    );
-  }
-
-  if (directTradeMutation.isPending) {
-    return (
-      <Button disabled className="w-full">
-        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-        Submitting...
-      </Button>
-    );
-  }
-
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+  
   return (
     <Button 
-      onClick={() => directTradeMutation.mutate()}
-      className="w-full"
+      onClick={handleSubmit}
+      disabled={isSubmitting}
     >
-      Submit Trade Offer
+      {isSubmitting ? (
+        <>
+          <span className="animate-spin inline-block mr-2">⟳</span>
+          Submitting...
+        </>
+      ) : (
+        "Send Trade Offer"
+      )}
     </Button>
   );
 }
