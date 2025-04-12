@@ -395,11 +395,134 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Failed to fetch conversation" });
     }
   });
+  
+  // API route to fetch products for trade messages
+  app.get("/api/products/trade-messages", ensureAuthenticated, async (req, res) => {
+    try {
+      // Get all products - in a real app we'd filter by the ones referenced in messages
+      const products = [];
+      for (let i = 1; i <= 100; i++) {
+        const product = await storage.getProduct(i);
+        if (product) {
+          products.push(product);
+        }
+      }
+      
+      // Convert to a map with product id as key
+      const productMap = products.reduce((map, product) => {
+        map[product.id] = product;
+        return map;
+      }, {});
+      
+      res.json(productMap);
+    } catch (error) {
+      console.error("Error fetching products for trade messages:", error);
+      res.status(500).json({ error: "Failed to fetch products" });
+    }
+  });
+  
+  // API route to confirm a trade
+  app.post("/api/trade/confirm", ensureAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const { messageId, role } = req.body;
+      
+      if (!messageId || !role || (role !== 'buyer' && role !== 'seller')) {
+        return res.status(400).json({ error: "Invalid request parameters" });
+      }
+      
+      // Get the message
+      const message = await storage.getMessage(messageId);
+      if (!message) {
+        return res.status(404).json({ error: "Message not found" });
+      }
+      
+      // Verify it's a trade message
+      if (!message.isTrade || !message.productId) {
+        return res.status(400).json({ error: "Not a trade message" });
+      }
+      
+      // Get the product
+      const product = await storage.getProduct(message.productId);
+      if (!product) {
+        return res.status(404).json({ error: "Product not found" });
+      }
+      
+      // Verify user's role and permissions
+      if (role === 'buyer') {
+        // For simplicity, we consider the sender as buyer if not the seller
+        if (userId !== message.senderId && userId !== message.receiverId) {
+          return res.status(403).json({ error: "Not authorized as buyer" });
+        }
+      } else if (role === 'seller') {
+        if (userId !== product.sellerId) {
+          return res.status(403).json({ error: "Not authorized as seller" });
+        }
+      }
+      
+      // Update the message with confirmation
+      const updates = role === 'buyer' 
+        ? { tradeConfirmedBuyer: true } 
+        : { tradeConfirmedSeller: true };
+      
+      const updatedMessage = await storage.updateMessage(messageId, updates);
+      
+      // Check if trade is fully confirmed
+      const isFullyConfirmed = updatedMessage.tradeConfirmedBuyer && updatedMessage.tradeConfirmedSeller;
+      
+      // If fully confirmed, create a transaction
+      if (isFullyConfirmed) {
+        const buyerId = message.senderId === product.sellerId 
+          ? message.receiverId 
+          : message.senderId;
+          
+        const tradeTransaction = await storage.createTransaction({
+          transactionId: `TRADE${Date.now()}`,
+          productId: product.id,
+          buyerId,
+          sellerId: product.sellerId,
+          amount: product.tradeValue || 0,
+          platformFee: (product.tradeValue || 0) * 0.1, // 10% fee
+          shipping: 0,
+          status: 'completed',
+          type: 'trade',
+          tradeDetails: {
+            messageId,
+            tradeOffer: message.content
+          },
+          timeline: [
+            {
+              status: 'created',
+              timestamp: new Date(),
+              note: 'Trade offer accepted by both parties'
+            },
+            {
+              status: 'completed',
+              timestamp: new Date(),
+              note: 'Trade completed successfully'
+            }
+          ]
+        });
+        
+        // Update product status
+        await storage.updateProduct(product.id, { status: 'sold' });
+      }
+      
+      res.json({
+        message: updatedMessage,
+        isFullyConfirmed
+      });
+      
+    } catch (error) {
+      console.error("Error confirming trade:", error);
+      res.status(500).json({ error: "Failed to confirm trade" });
+    }
+  });
 
   app.post("/api/messages", ensureAuthenticated, async (req, res) => {
     try {
       const senderId = req.user!.id;
-      const { receiverId, content, images } = req.body;
+      const { receiverId, content, images, isTrade, productId } = req.body;
 
       // Find or create conversation
       let conversation = await storage.getConversationByUsers(senderId, receiverId);
@@ -417,7 +540,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         senderId,
         receiverId,
         content,
-        images
+        images,
+        isTrade: isTrade || false,
+        productId: productId || null,
+        tradeConfirmedBuyer: false,
+        tradeConfirmedSeller: false
       });
 
       // Create the message

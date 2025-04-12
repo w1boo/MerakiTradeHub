@@ -367,6 +367,19 @@ export class MemStorage implements IStorage {
     this.messages.set(id, updatedMessage);
     return updatedMessage;
   }
+  
+  async getMessage(id: number): Promise<Message | undefined> {
+    return this.messages.get(id);
+  }
+  
+  async updateMessage(id: number, updates: Partial<Message>): Promise<Message | undefined> {
+    const message = this.messages.get(id);
+    if (!message) return undefined;
+    
+    const updatedMessage = { ...message, ...updates };
+    this.messages.set(id, updatedMessage);
+    return updatedMessage;
+  }
 
   // Conversation methods
   async createConversation(conversation: InsertConversation): Promise<Conversation> {
