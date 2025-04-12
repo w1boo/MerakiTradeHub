@@ -3,8 +3,10 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 
 const app = express();
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+// Increase request size limit for JSON body parser to 10MB
+app.use(express.json({ limit: '10mb' }));
+// Increase request size limit for URL-encoded body parser to 10MB
+app.use(express.urlencoded({ extended: false, limit: '10mb' }));
 
 app.use((req, res, next) => {
   const start = Date.now();
