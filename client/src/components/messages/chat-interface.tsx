@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { Conversation, Message, User } from "@/types";
+import { Conversation, Message, User, Product } from "@/types";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -10,7 +10,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Icon } from "@/components/ui/theme";
 import { format } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
-import { toast } from "@/components/ui/toast"; // Assuming a toast component exists
+import { useToast } from "@/hooks/use-toast";
 
 interface ChatInterfaceProps {
   conversationId?: number;
@@ -18,6 +18,7 @@ interface ChatInterfaceProps {
 
 export default function ChatInterface({ conversationId }: ChatInterfaceProps) {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [message, setMessage] = useState("");
   const [selectedConversation, setSelectedConversation] = useState<number | null>(conversationId || null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -39,7 +40,7 @@ export default function ChatInterface({ conversationId }: ChatInterfaceProps) {
   });
   
   // Fetch product data for trade messages
-  const { data: productsData } = useQuery<Record<number, any>>({
+  const { data: productsData } = useQuery<Record<number, Product>>({
     queryKey: ["/api/products/trade-messages"],
     enabled: !!conversationData?.messages?.some(m => m.isTrade && m.productId),
   });
