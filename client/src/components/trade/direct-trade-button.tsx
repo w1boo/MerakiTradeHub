@@ -32,7 +32,10 @@ export function DirectTradeButton({
     
     setIsSubmitting(true);
     try {
-      console.log("Sending trade offer with image:", offerItemImage ? "Image exists" : "No image");
+      console.log("Sending trade offer with image:", offerItemImage ? `Image exists (length: ${offerItemImage.length})` : "No image");
+      
+      // Create the array of images instead of sending single image
+      const offerItemImages = offerItemImage ? [offerItemImage] : [];
       
       // Create a direct trade offer using the direct trade API
       const res = await apiRequest("POST", "/api/direct-trades", {
@@ -41,7 +44,7 @@ export function DirectTradeButton({
         offerValue,
         offerItemName,
         offerItemDescription,
-        offerItemImage,
+        offerItemImages, // Send as array directly
         status: "pending",
       });
       

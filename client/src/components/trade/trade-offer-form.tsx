@@ -186,6 +186,7 @@ export function TradeOfferForm({ productId, sellerId, productTitle, onSuccess }:
             
             // Set the image URL in the form
             form.setValue('offerItemImage', dataUrl);
+            console.log("Image set in form with length:", dataUrl.length);
           }
           setIsUploading(false);
         })
