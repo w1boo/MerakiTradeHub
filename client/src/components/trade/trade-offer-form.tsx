@@ -50,6 +50,7 @@ export function TradeOfferForm({ productId, sellerId, productTitle, onSuccess }:
       offerValue: 10000,
       offerItemImage: "",
     },
+    mode: "onBlur", // validate on blur for better UX
   });
   
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
