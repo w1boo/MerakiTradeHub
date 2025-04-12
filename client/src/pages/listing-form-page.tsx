@@ -549,13 +549,13 @@ export default function ListingFormPage() {
                           name="price"
                           render={({ field }) => (
                             <FormItem className="w-full">
-                              <FormLabel>Price ($)</FormLabel>
+                              <FormLabel>Price (₫)</FormLabel>
                               <FormControl>
                                 <Input 
                                   type="number" 
-                                  min="0" 
-                                  step="0.01" 
-                                  placeholder="0.00"
+                                  min="1000" 
+                                  step="1000" 
+                                  placeholder="10000"
                                   {...field}
                                   onChange={(e) => {
                                     const value = e.target.value ? parseFloat(e.target.value) : undefined;
@@ -564,7 +564,7 @@ export default function ListingFormPage() {
                                 />
                               </FormControl>
                               <FormDescription>
-                                Set the purchase price in USD
+                                Set the purchase price in VND
                               </FormDescription>
                               <FormMessage />
                             </FormItem>
@@ -578,13 +578,13 @@ export default function ListingFormPage() {
                           name="tradeValue"
                           render={({ field }) => (
                             <FormItem className="w-full">
-                              <FormLabel>Trade Value ($)</FormLabel>
+                              <FormLabel>Trade Value (₫)</FormLabel>
                               <FormControl>
                                 <Input 
                                   type="number" 
-                                  min="0" 
-                                  step="0.01" 
-                                  placeholder="0.00"
+                                  min="1000" 
+                                  step="1000" 
+                                  placeholder="10000"
                                   {...field}
                                   onChange={(e) => {
                                     const value = e.target.value ? parseFloat(e.target.value) : undefined;
