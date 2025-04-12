@@ -18,6 +18,25 @@ export default function TradeMessage({ message, product, currentUser, otherUser 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
   
+  // Add defensive checks for all properties
+  if (!message || !product || !currentUser) {
+    console.error('Missing required props in TradeMessage:', { 
+      hasMessage: !!message, 
+      hasProduct: !!product, 
+      hasCurrentUser: !!currentUser,
+      hasOtherUser: !!otherUser
+    });
+    
+    // Return simple error state instead of crashing
+    return (
+      <Card className="mb-2 border-accent/30 overflow-hidden shadow-md">
+        <CardContent className="p-4">
+          <p className="text-neutral-500">Trade message data is loading or unavailable.</p>
+        </CardContent>
+      </Card>
+    );
+  }
+  
   const isFromCurrentUser = message.senderId === currentUser.id;
   const isBuyer = isFromCurrentUser || message.receiverId === currentUser.id;
   const isSeller = product.sellerId === currentUser.id;

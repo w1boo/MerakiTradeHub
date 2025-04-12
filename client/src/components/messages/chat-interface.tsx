@@ -326,8 +326,19 @@ export default function ChatInterface({ conversationId }: ChatInterfaceProps) {
                     // Force TypeScript to recognize these properties exist 
                     const tradeMsg = msg as { isTrade?: boolean; productId?: number | null };
                     if (tradeMsg.isTrade === true && tradeMsg.productId && user) {
-                      const product = productsData[tradeMsg.productId];
+                      // Check if products data exists and has this product
+                      const product = productsData && tradeMsg.productId in productsData 
+                        ? productsData[tradeMsg.productId]
+                        : null;
+                        
+                      // Log for debugging
+                      if (!product) {
+                        console.warn(`Trade message ${msg.id} references product ${tradeMsg.productId} which is not loaded`, 
+                          { availableProducts: Object.keys(productsData || {}) });
+                      }
+                      
                       if (product) {
+                        // Load the trade message component dynamically to avoid issues
                         const TradeMessage = require('./trade-message').default;
                         
                         return (
@@ -341,6 +352,25 @@ export default function ChatInterface({ conversationId }: ChatInterfaceProps) {
                               currentUser={user}
                               otherUser={conversationData.otherUser}
                             />
+                          </div>
+                        );
+                      } else {
+                        // Render a placeholder for trade messages without product data
+                        return (
+                          <div 
+                            key={msg.id} 
+                            className={`flex flex-col ${msg.senderId === user.id ? 'items-end' : 'items-start'} w-full`}
+                          >
+                            <div className="bg-accent/10 text-accent rounded-lg p-3 border border-accent/20 mb-2">
+                              <div className="flex items-center mb-2">
+                                <Icon icon="ri-exchange-fill mr-2" />
+                                <span className="font-semibold">Trade Offer</span>
+                              </div>
+                              <p className="text-sm whitespace-pre-line">{msg.content}</p>
+                              <p className="text-xs mt-2 text-neutral-500">
+                                Loading trade details...
+                              </p>
+                            </div>
                           </div>
                         );
                       }
