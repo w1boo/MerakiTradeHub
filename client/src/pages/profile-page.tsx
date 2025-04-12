@@ -48,6 +48,7 @@ import {
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -62,8 +63,9 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 // Form schema for withdrawal
 const withdrawalSchema = z.object({
-  amount: z.coerce.number().positive("Amount must be greater than 0"),
+  amount: z.coerce.number().min(10000, "Minimum withdrawal amount is 10,000 VND"),
   method: z.string().min(1, "Please select a withdrawal method"),
+  bankInfo: z.string().min(5, "Please provide your bank account information"),
 });
 
 type WithdrawalFormValues = z.infer<typeof withdrawalSchema>;
@@ -476,7 +478,7 @@ export default function ProfilePage() {
                                 <TableRow key={withdrawal.id}>
                                   <TableCell>{formatDate(withdrawal.createdAt)}</TableCell>
                                   <TableCell className="capitalize">{withdrawal.method}</TableCell>
-                                  <TableCell>${withdrawal.amount.toFixed(2)}</TableCell>
+                                  <TableCell>{withdrawal.amount.toLocaleString('vi-VN')} ₫</TableCell>
                                   <TableCell>
                                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                                       withdrawal.status === 'completed' 
@@ -628,23 +630,23 @@ export default function ProfilePage() {
                 name="amount"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Amount</FormLabel>
+                    <FormLabel>Amount (VND)</FormLabel>
                     <div className="relative">
-                      <span className="absolute left-3 top-1/2 transform -translate-y-1/2 font-medium">$</span>
+                      <span className="absolute left-3 top-1/2 transform -translate-y-1/2 font-medium">₫</span>
                       <FormControl>
                         <Input
                           type="number"
-                          step="0.01"
-                          min="0"
+                          step="1000"
+                          min="10000"
                           max={user?.balance || 0}
                           className="pl-8"
-                          placeholder="0.00"
+                          placeholder="0"
                           {...field}
                         />
                       </FormControl>
                     </div>
                     <p className="text-sm text-neutral-500">
-                      Available balance: ${user?.balance.toFixed(2) || "0.00"}
+                      Available balance: {user?.balance.toLocaleString('vi-VN') || "0"} ₫
                     </p>
                     <FormMessage />
                   </FormItem>
@@ -660,11 +662,31 @@ export default function ProfilePage() {
                     <select
                       className="w-full p-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                       {...field}
+                      value="bankTransfer"
+                      disabled
                     >
                       <option value="bankTransfer">Bank Transfer</option>
-                      <option value="paypal">PayPal</option>
-                      <option value="creditCard">Credit Card Refund</option>
                     </select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={withdrawalForm.control}
+                name="bankInfo"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Bank Account Information</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="Bank Name, Account Holder, Account Number"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Enter your bank details where you'd like to receive the funds
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -672,8 +694,8 @@ export default function ProfilePage() {
 
               <div className="p-3 bg-neutral-100 rounded-lg text-neutral-700 text-sm">
                 <p>
-                  Withdrawals typically take 2-3 business days to process. 
-                  There is no fee for standard withdrawals.
+                  Withdrawals typically take 1-2 business days to process. 
+                  Minimum withdrawal amount is 10,000 VND.
                 </p>
               </div>
 
