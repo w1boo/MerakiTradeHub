@@ -476,7 +476,7 @@ export default function ProfilePage() {
                                 <TableRow key={withdrawal.id}>
                                   <TableCell>{formatDate(withdrawal.createdAt)}</TableCell>
                                   <TableCell className="capitalize">{withdrawal.method}</TableCell>
-                                  <TableCell>${withdrawal.amount.toFixed(2)}</TableCell>
+                                  <TableCell>{withdrawal.amount.toLocaleString('vi-VN')} ₫</TableCell>
                                   <TableCell>
                                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                                       withdrawal.status === 'completed' 
@@ -630,7 +630,7 @@ export default function ProfilePage() {
                   <FormItem>
                     <FormLabel>Amount</FormLabel>
                     <div className="relative">
-                      <span className="absolute left-3 top-1/2 transform -translate-y-1/2 font-medium">$</span>
+                      <span className="absolute left-3 top-1/2 transform -translate-y-1/2 font-medium">₫</span>
                       <FormControl>
                         <Input
                           type="number"
@@ -644,7 +644,7 @@ export default function ProfilePage() {
                       </FormControl>
                     </div>
                     <p className="text-sm text-neutral-500">
-                      Available balance: ${user?.balance.toFixed(2) || "0.00"}
+                      Available balance: {user?.balance.toLocaleString('vi-VN') || "0"} ₫
                     </p>
                     <FormMessage />
                   </FormItem>
