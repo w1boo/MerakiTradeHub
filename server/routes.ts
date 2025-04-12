@@ -1,5 +1,4 @@
 import type { Express, Request, Response } from "express";
-import express from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth } from "./auth";
@@ -27,9 +26,6 @@ import {
   rejectDirectTradeOffer
 } from "./direct-trade-api";
 import { randomBytes } from "crypto";
-import multer from 'multer';
-import path from 'path';
-import fs from 'fs';
 
 function ensureAuthenticated(req: Request, res: Response, next: Function) {
   if (req.isAuthenticated()) {
@@ -48,61 +44,6 @@ function ensureAdmin(req: Request, res: Response, next: Function) {
 export async function registerRoutes(app: Express): Promise<Server> {
   // sets up /api/register, /api/login, /api/logout, /api/user
   setupAuth(app);
-  
-  // File upload route for trade item images
-  // Create uploads directory if it doesn't exist
-  const uploadDir = path.join(import.meta.dirname, '../public/uploads');
-  if (!fs.existsSync(uploadDir)){
-      fs.mkdirSync(uploadDir, { recursive: true });
-  }
-  
-  // Serve static files from uploads directory
-  app.use('/uploads', express.static(path.join(import.meta.dirname, '../public/uploads')));
-  
-  // Set up storage for uploaded files
-  const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-      cb(null, uploadDir);
-    },
-    filename: (req, file, cb) => {
-      const uniquePrefix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-      cb(null, uniquePrefix + path.extname(file.originalname));
-    }
-  });
-  
-  // Create the multer instance
-  const upload = multer({ 
-    storage,
-    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
-    fileFilter: (req, file, cb) => {
-      // Accept only image files
-      const allowedTypes = /jpeg|jpg|png|gif|webp/;
-      const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-      const mimetype = allowedTypes.test(file.mimetype);
-      
-      if (extname && mimetype) {
-        return cb(null, true);
-      } else {
-        cb(new Error("Only image files are allowed!"));
-      }
-    }
-  });
-  
-  // Image upload endpoint
-  app.post('/api/upload', upload.single('image'), (req, res) => {
-    try {
-      if (!req.file) {
-        return res.status(400).json({ error: 'No file uploaded' });
-      }
-      
-      // Return the URL to the uploaded file
-      const fileUrl = `/uploads/${req.file.filename}`;
-      res.json({ url: fileUrl });
-    } catch (error) {
-      console.error('Error uploading file:', error);
-      res.status(500).json({ error: 'Failed to upload file' });
-    }
-  });
 
   // Category routes
   app.get("/api/categories", async (req, res) => {

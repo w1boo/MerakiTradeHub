@@ -7,7 +7,7 @@ import type {
 } from "@shared/schema";
 import session from "express-session";
 import createMemoryStore from "memorystore";
-import { hashPassword } from "./password-utils";
+import { hashPassword } from "./auth";
 
 const MemoryStore = createMemoryStore(session);
 
