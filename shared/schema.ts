@@ -57,6 +57,20 @@ export const transactions = pgTable("transactions", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+export const tradeOffers = pgTable("trade_offers", {
+  id: serial("id").primaryKey(),
+  buyerId: integer("buyer_id").references(() => users.id).notNull(),
+  sellerId: integer("seller_id").references(() => users.id).notNull(),
+  productId: integer("product_id").references(() => products.id).notNull(),
+  offerValue: doublePrecision("offer_value").notNull(),
+  status: text("status").default("pending").notNull(), // pending, accepted, rejected, completed
+  buyerConfirmed: boolean("buyer_confirmed").default(false).notNull(),
+  sellerConfirmed: boolean("seller_confirmed").default(false).notNull(),
+  relatedMessageId: integer("related_message_id"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 export const messages = pgTable("messages", {
   id: serial("id").primaryKey(),
   senderId: integer("sender_id").references(() => users.id).notNull(),
@@ -66,6 +80,7 @@ export const messages = pgTable("messages", {
   isRead: boolean("is_read").default(false).notNull(),
   isTrade: boolean("is_trade").default(false).notNull(),
   productId: integer("product_id").references(() => products.id),
+  tradeOfferId: integer("trade_offer_id").references(() => tradeOffers.id),
   tradeDetails: text("trade_details"),
   tradeConfirmedBuyer: boolean("trade_confirmed_buyer").default(false).notNull(),
   tradeConfirmedSeller: boolean("trade_confirmed_seller").default(false).notNull(),
@@ -140,6 +155,17 @@ export const insertTransactionSchema = createInsertSchema(transactions).pick({
   timeline: true,
 });
 
+export const insertTradeOfferSchema = createInsertSchema(tradeOffers).pick({
+  buyerId: true,
+  sellerId: true,
+  productId: true,
+  offerValue: true,
+  status: true,
+  buyerConfirmed: true,
+  sellerConfirmed: true,
+  relatedMessageId: true,
+});
+
 export const insertMessageSchema = createInsertSchema(messages).pick({
   senderId: true,
   receiverId: true,
@@ -147,6 +173,7 @@ export const insertMessageSchema = createInsertSchema(messages).pick({
   images: true,
   isTrade: true,
   productId: true,
+  tradeOfferId: true,
   tradeDetails: true,
   tradeConfirmedBuyer: true,
   tradeConfirmedSeller: true,
@@ -184,6 +211,9 @@ export type InsertProduct = z.infer<typeof insertProductSchema>;
 
 export type Transaction = typeof transactions.$inferSelect;
 export type InsertTransaction = z.infer<typeof insertTransactionSchema>;
+
+export type TradeOffer = typeof tradeOffers.$inferSelect;
+export type InsertTradeOffer = z.infer<typeof insertTradeOfferSchema>;
 
 export type Message = typeof messages.$inferSelect;
 export type InsertMessage = z.infer<typeof insertMessageSchema>;

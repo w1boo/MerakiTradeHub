@@ -35,6 +35,13 @@ export interface IStorage {
   getCategories(): Promise<ProductCategory[]>;
   getCategory(id: number): Promise<ProductCategory | undefined>;
 
+  // Trade Offer methods
+  createTradeOffer(tradeOffer: InsertTradeOffer): Promise<TradeOffer>;
+  getTradeOffer(id: number): Promise<TradeOffer | undefined>;
+  getUserTradeOffers(userId: number): Promise<TradeOffer[]>;
+  getPendingTradeOffers(userId: number): Promise<TradeOffer[]>;
+  updateTradeOffer(id: number, updates: Partial<TradeOffer>): Promise<TradeOffer | undefined>;
+
   // Transaction methods
   createTransaction(transaction: InsertTransaction): Promise<Transaction>;
   getTransaction(id: number): Promise<Transaction | undefined>;
@@ -75,6 +82,7 @@ export class MemStorage implements IStorage {
   private products: Map<number, Product>;
   private categories: Map<number, ProductCategory>;
   private transactions: Map<number, Transaction>;
+  private tradeOffers: Map<number, TradeOffer>;
   private messages: Map<number, Message>;
   private conversations: Map<number, Conversation>;
   private deposits: Map<number, Deposit>;
@@ -84,6 +92,7 @@ export class MemStorage implements IStorage {
   currentProductId: number;
   currentCategoryId: number;
   currentTransactionId: number;
+  currentTradeOfferId: number;
   currentMessageId: number;
   currentConversationId: number;
   currentDepositId: number;
@@ -96,6 +105,7 @@ export class MemStorage implements IStorage {
     this.products = new Map();
     this.categories = new Map();
     this.transactions = new Map();
+    this.tradeOffers = new Map();
     this.messages = new Map();
     this.conversations = new Map();
     this.deposits = new Map();
@@ -105,6 +115,7 @@ export class MemStorage implements IStorage {
     this.currentProductId = 1;
     this.currentCategoryId = 1;
     this.currentTransactionId = 1;
+    this.currentTradeOfferId = 1;
     this.currentMessageId = 1;
     this.currentConversationId = 1;
     this.currentDepositId = 1;
@@ -302,6 +313,61 @@ export class MemStorage implements IStorage {
 
   async getCategory(id: number): Promise<ProductCategory | undefined> {
     return this.categories.get(id);
+  }
+  
+  // Trade Offer methods
+  async createTradeOffer(tradeOffer: InsertTradeOffer): Promise<TradeOffer> {
+    const id = this.currentTradeOfferId++;
+    const timestamp = new Date();
+    const newTradeOffer: TradeOffer = {
+      id,
+      buyerId: tradeOffer.buyerId,
+      sellerId: tradeOffer.sellerId,
+      productId: tradeOffer.productId,
+      offerValue: tradeOffer.offerValue,
+      status: tradeOffer.status || 'pending',
+      buyerConfirmed: tradeOffer.buyerConfirmed || false,
+      sellerConfirmed: tradeOffer.sellerConfirmed || false,
+      relatedMessageId: tradeOffer.relatedMessageId || null,
+      createdAt: timestamp,
+      updatedAt: timestamp
+    };
+    this.tradeOffers.set(id, newTradeOffer);
+    return newTradeOffer;
+  }
+  
+  async getTradeOffer(id: number): Promise<TradeOffer | undefined> {
+    return this.tradeOffers.get(id);
+  }
+  
+  async getUserTradeOffers(userId: number): Promise<TradeOffer[]> {
+    return Array.from(this.tradeOffers.values())
+      .filter(tradeOffer => 
+        tradeOffer.buyerId === userId || tradeOffer.sellerId === userId
+      )
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  }
+  
+  async getPendingTradeOffers(userId: number): Promise<TradeOffer[]> {
+    return Array.from(this.tradeOffers.values())
+      .filter(tradeOffer => 
+        (tradeOffer.buyerId === userId || tradeOffer.sellerId === userId) &&
+        tradeOffer.status === 'pending'
+      )
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  }
+  
+  async updateTradeOffer(id: number, updates: Partial<TradeOffer>): Promise<TradeOffer | undefined> {
+    const tradeOffer = await this.getTradeOffer(id);
+    if (!tradeOffer) return undefined;
+    
+    const updatedTradeOffer = {
+      ...tradeOffer,
+      ...updates,
+      updatedAt: new Date()
+    };
+    this.tradeOffers.set(id, updatedTradeOffer);
+    return updatedTradeOffer;
   }
 
   // Transaction methods
