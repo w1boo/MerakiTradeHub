@@ -5,8 +5,18 @@ import { setupAuth } from "./auth";
 import { z } from "zod";
 import { 
   insertProductSchema, insertTransactionSchema, insertMessageSchema, 
-  insertDepositSchema, insertWithdrawalSchema, InsertProduct, Product
+  insertDepositSchema, insertWithdrawalSchema, InsertProduct, Product,
+  InsertTradeOffer, TradeOffer
 } from "@shared/schema";
+import { 
+  createTradeOffer, 
+  getUserTradeOffers, 
+  getPendingTradeOffers,
+  getTradeOffer,
+  acceptTradeOffer,
+  confirmTrade,
+  rejectTradeOffer 
+} from "./trade-api";
 import { randomBytes } from "crypto";
 
 function ensureAuthenticated(req: Request, res: Response, next: Function) {
@@ -1150,6 +1160,15 @@ app.get("/api/admin/transactions", ensureAdmin, async (req, res) => {
       res.status(500).json({ error: "Failed to accept trade offer" });
     }
   });
+
+  // New Trade Offer API Routes
+  app.post("/api/trade-offers", ensureAuthenticated, createTradeOffer);
+  app.get("/api/trade-offers", ensureAuthenticated, getUserTradeOffers);
+  app.get("/api/trade-offers/pending", ensureAuthenticated, getPendingTradeOffers);
+  app.get("/api/trade-offers/:id", ensureAuthenticated, getTradeOffer);
+  app.post("/api/trade-offers/:id/accept", ensureAuthenticated, acceptTradeOffer);
+  app.post("/api/trade-offers/:id/confirm", ensureAuthenticated, confirmTrade);
+  app.post("/api/trade-offers/:id/reject", ensureAuthenticated, rejectTradeOffer);
 
   const httpServer = createServer(app);
   return httpServer;
