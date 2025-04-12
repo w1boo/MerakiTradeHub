@@ -66,6 +66,7 @@ export const tradeOffers = pgTable("trade_offers", {
   status: text("status").default("pending").notNull(), // pending, accepted, rejected, completed
   buyerConfirmed: boolean("buyer_confirmed").default(false).notNull(),
   sellerConfirmed: boolean("seller_confirmed").default(false).notNull(),
+  escrowAmount: doublePrecision("escrow_amount"), // Amount held in escrow during trade process
   relatedMessageId: integer("related_message_id"),
   offerItemName: text("offer_item_name"),
   offerItemDescription: text("offer_item_description"),
@@ -167,6 +168,7 @@ export const insertTradeOfferSchema = createInsertSchema(tradeOffers).pick({
   status: true,
   buyerConfirmed: true,
   sellerConfirmed: true,
+  escrowAmount: true,
   relatedMessageId: true,
   offerItemName: true,
   offerItemDescription: true,

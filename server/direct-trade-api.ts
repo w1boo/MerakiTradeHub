@@ -133,9 +133,34 @@ export async function acceptDirectTradeOffer(req: Request, res: Response) {
       return res.status(400).json({ error: `Trade offer is already ${tradeOffer.status}` });
     }
     
-    // Update the trade offer status to accepted
+    // Determine which value is higher - the product or the offered item
+    const product = await storage.getProduct(tradeOffer.productId);
+    if (!product) {
+      return res.status(404).json({ error: "Product not found" });
+    }
+    
+    // The higher of the two values will be held in escrow
+    const escrowAmount = Math.max(
+      product.tradeValue || 0, 
+      tradeOffer.offerValue || 0
+    );
+    
+    // Check if the seller has enough funds for escrow
+    if (user.balance < escrowAmount) {
+      return res.status(400).json({ 
+        error: `You need at least ${escrowAmount.toLocaleString('vi-VN')} ₫ in your account to accept this trade. This amount will be held in escrow until the trade is completed.` 
+      });
+    }
+    
+    // Withdraw funds from seller for escrow
+    const updatedUser = await storage.updateUser(user.id, {
+      balance: user.balance - escrowAmount
+    });
+    
+    // Update the trade offer status to accepted and save escrow amount
     const updatedOffer = await storage.updateTradeOffer(Number(id), {
       status: "accepted",
+      escrowAmount: escrowAmount,
       updatedAt: new Date()
     });
     
@@ -189,6 +214,19 @@ export async function confirmDirectTrade(req: Request, res: Response) {
     // Calculate platform fee (10% of trade value)
     const platformFee = Math.round(tradeValue * 0.1);
     
+    // Get the escrow amount that was held
+    const escrowAmount = tradeOffer.escrowAmount || 0;
+    
+    // Get the seller to return funds (minus fee)
+    const seller = await storage.getUser(tradeOffer.sellerId);
+    if (seller) {
+      // Return the escrow amount to the seller (minus platform fee)
+      const amountToReturn = escrowAmount - platformFee;
+      await storage.updateUser(seller.id, {
+        balance: seller.balance + amountToReturn
+      });
+    }
+    
     // Create a transaction for this trade
     const transaction = await storage.createTransaction({
       productId: tradeOffer.productId,
@@ -208,14 +246,16 @@ export async function confirmDirectTrade(req: Request, res: Response) {
         {
           status: "completed",
           timestamp: new Date().toISOString(),
-          note: "Trade completed successfully"
+          note: "Trade completed successfully, escrow released minus platform fee"
         }
       ],
       tradeDetails: {
         tradeOfferId: tradeOffer.id,
         offerItemName: tradeOffer.offerItemName,
         offerItemDescription: tradeOffer.offerItemDescription,
-        offerValue: tradeOffer.offerValue
+        offerValue: tradeOffer.offerValue,
+        escrowAmount: escrowAmount,
+        escrowReleased: escrowAmount - platformFee
       }
     });
     
@@ -266,6 +306,17 @@ export async function rejectDirectTradeOffer(req: Request, res: Response) {
     // Verify the offer is still pending or accepted (not completed or already rejected)
     if (tradeOffer.status !== "pending" && tradeOffer.status !== "accepted") {
       return res.status(400).json({ error: `Trade offer cannot be rejected when it's ${tradeOffer.status}` });
+    }
+    
+    // If the trade was already accepted, return the escrow amount
+    if (tradeOffer.status === "accepted" && tradeOffer.escrowAmount) {
+      // Return the full escrow amount to the seller
+      const seller = await storage.getUser(tradeOffer.sellerId);
+      if (seller) {
+        await storage.updateUser(seller.id, {
+          balance: seller.balance + tradeOffer.escrowAmount
+        });
+      }
     }
     
     // Update the trade offer status to rejected
