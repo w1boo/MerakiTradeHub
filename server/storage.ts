@@ -119,10 +119,14 @@ export class MemStorage implements IStorage {
   
   // Create an admin user for testing
   private seedAdminUser() {
+    // Create a proper password hash that works with our comparePasswords function
+    // Format: [hash].[salt]
+    // Using a known hash and salt for 'admin123'
     const adminUser: User = {
       id: this.currentUserId++,
       username: 'admin',
-      password: 'd9e2fe86bfd601f61cc17ad668766fdd7043d9e11c8e696372dc39d13c8e2cf6.bc7173ecfc43a24fb76c2087ad8e2c34', // password: 'admin123'
+      // Simple password hash format that works with our system for password: 'admin123'
+      password: '5fa3149ed4a0bb6cc5db9e45b499893e4d299290b9ab434af35d3aa0e75b46e8a66bfc4879f233f67391dfdea61c49a5a3e20e4e136e528e1939d0f489730b0d.6d21a9ffa40e10d7e50dac399b6d082c',
       firstName: 'Admin',
       lastName: 'User',
       email: 'admin@example.com',
