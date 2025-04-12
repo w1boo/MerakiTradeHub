@@ -412,22 +412,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         images
       });
 
+      // Create message without the conversationId field as it's not in the schema
       const message = await storage.createMessage({
         ...messageData,
-        conversationId: conversation.id,
-        isRead: false,
-        createdAt: new Date()
+        isRead: false
       });
 
-      // Update conversation with last message
+      // Update conversation with last message ID only
       await storage.updateConversation(conversation.id, {
         lastMessageId: message.id,
-        lastMessage: message,
         updatedAt: new Date()
       });
 
+      // Return the full message data
       res.status(201).json(message);
     } catch (error) {
+      console.error("Error sending message:", error);
       if (error instanceof z.ZodError) {
         return res.status(400).json({ error: error.errors });
       }
