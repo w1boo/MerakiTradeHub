@@ -242,6 +242,69 @@ export default function ListingFormPage() {
     }
   };
   
+  // Compress image before processing
+  const compressImage = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          // Create canvas
+          const canvas = document.createElement('canvas');
+          
+          // Calculate new dimensions (max width/height 1200px)
+          let width = img.width;
+          let height = img.height;
+          const maxDimension = 1200;
+          
+          if (width > maxDimension || height > maxDimension) {
+            if (width > height) {
+              height = Math.round((height * maxDimension) / width);
+              width = maxDimension;
+            } else {
+              width = Math.round((width * maxDimension) / height);
+              height = maxDimension;
+            }
+          }
+          
+          // Resize image
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          
+          if (!ctx) {
+            reject(new Error('Could not get canvas context'));
+            return;
+          }
+          
+          ctx.drawImage(img, 0, 0, width, height);
+          
+          // Convert to data URL with reduced quality
+          const quality = 0.7; // 70% quality
+          const dataUrl = canvas.toDataURL('image/jpeg', quality);
+          
+          resolve(dataUrl);
+        };
+        
+        img.onerror = () => {
+          reject(new Error('Failed to load image'));
+        };
+        
+        if (event.target && event.target.result) {
+          img.src = event.target.result as string;
+        } else {
+          reject(new Error('Failed to read file'));
+        }
+      };
+      
+      reader.onerror = () => {
+        reject(new Error('Failed to read file'));
+      };
+      
+      reader.readAsDataURL(file);
+    });
+  };
+  
   // Process the files
   const handleFiles = (files: FileList) => {
     Array.from(files).forEach(file => {
@@ -255,11 +318,9 @@ export default function ListingFormPage() {
         return;
       }
       
-      // Convert file to data URL
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        if (e.target && e.target.result) {
-          const dataUrl = e.target.result as string;
+      // Compress and process the image
+      compressImage(file)
+        .then(dataUrl => {
           if (!selectedImages.includes(dataUrl)) {
             // Update both the local state and the form state
             const newImages = [...selectedImages, dataUrl];
@@ -268,9 +329,14 @@ export default function ListingFormPage() {
             // Set the images value in the form
             form.setValue('images', newImages);
           }
-        }
-      };
-      reader.readAsDataURL(file);
+        })
+        .catch(error => {
+          toast({
+            title: "Image processing failed",
+            description: error.message,
+            variant: "destructive",
+          });
+        });
     });
   };
   
