@@ -185,8 +185,8 @@ export default function ProductDetailPage() {
     setBuyModalOpen(true);
   };
   
-  // Handle trade offer
-  const handleTradeOffer = () => {
+  // Handle trade offer - now opens a chat with the seller
+  const handleTradeOffer = async () => {
     if (!user) {
       navigate("/auth");
       return;
@@ -204,7 +204,48 @@ export default function ProductDetailPage() {
       return;
     }
     
-    setTradeModalOpen(true);
+    // Instead of opening the trade modal, we'll start a conversation with a trade proposal
+    try {
+      setIsMessagingLoading(true);
+      
+      // Let's create a conversation with a trade offer template
+      const tradeValue = product.tradeValue || 0;
+      const tradeMessage = `Hello, I'm interested in trading for your item: "${product.title}". 
+      
+Would you consider a trade valued at ${tradeValue.toLocaleString('vi-VN')} ₫?
+      
+Please let me know if you're open to discussing this trade.`;
+      
+      const res = await apiRequest("POST", "/api/messages", {
+        recipientId: product.sellerId,
+        content: tradeMessage,
+        productId: product.id,
+        isTrade: true,
+      });
+      
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Failed to send trade offer");
+      }
+      
+      const data = await res.json();
+      toast({
+        title: "Trade offer sent",
+        description: "You can now continue the trade negotiation in your messages.",
+      });
+      
+      // Redirect to messaging page
+      navigate("/messages");
+    } catch (error: any) {
+      toast({
+        title: "Could not send trade offer",
+        description: error.message || "Failed to start trade negotiation. Please try again.",
+        variant: "destructive",
+      });
+      console.error("Trade offer error:", error);
+    } finally {
+      setIsMessagingLoading(false);
+    }
   };
   
   // Confirm purchase

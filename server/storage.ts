@@ -333,6 +333,10 @@ export class MemStorage implements IStorage {
       content: message.content,
       images: message.images || null,
       isRead: false,
+      isTrade: message.isTrade || false,
+      productId: message.productId || null,
+      tradeConfirmedBuyer: message.tradeConfirmedBuyer || false,
+      tradeConfirmedSeller: message.tradeConfirmedSeller || false,
       createdAt: timestamp
     };
     this.messages.set(id, newMessage);
