@@ -77,61 +77,49 @@ export default function DirectTradeAcceptPage() {
         throw new Error('This product has already been traded or sold');
       }
       
-      // Check if a transaction already exists for this product
-      const existingTransactionsResponse = await fetch('/api/transactions', {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      const transactions = await existingTransactionsResponse.json();
-      const existingTransaction = transactions.find(
-        (t: any) => t.productId === Number(productId) && (t.status === 'completed' || t.status === 'pending')
-      );
-      
-      if (existingTransaction) {
-        throw new Error('A transaction for this product already exists');
+      // Check if product allows trading
+      if (!product.allowTrade) {
+        throw new Error('This product does not allow trading');
       }
       
-      // Create transaction only if one doesn't exist
-      const response = await fetch(`/api/transactions`, {
+      // Create a direct trade offer first
+      const createOfferResponse = await fetch(`/api/direct-trade-offers`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           productId: Number(productId),
-          amount: product.tradeValue || 0,
-          type: 'trade',
-          status: 'completed',
-          shipping: 0,
-          timeline: [
-            {
-              status: 'completed',
-              timestamp: new Date(),
-              description: 'Trade completed directly'
-            }
-          ]
+          offeredItemName: "Direct Acceptance Item",
+          offeredItemDescription: "Item offered through direct acceptance",
+          offeredItemValue: product.tradeValue || 0,
+          offeredItemImages: ["https://via.placeholder.com/150?text=Direct+Trade+Item"],
+          notes: "This trade was created and accepted directly."
         })
       });
       
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to accept trade');
+      if (!createOfferResponse.ok) {
+        const offerData = await createOfferResponse.json();
+        throw new Error(offerData.error || 'Failed to create trade offer');
       }
       
-      // Mark product as sold
-      await fetch(`/api/products/${productId}`, {
-        method: 'PUT',
+      const offerResult = await createOfferResponse.json();
+      const offerId = offerResult.offer.id;
+      
+      // Accept the trade offer immediately
+      const acceptResponse = await fetch(`/api/direct-trade-offers/${offerId}/accept`, {
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          status: 'sold'
-        })
+        }
       });
+      
+      if (!acceptResponse.ok) {
+        const acceptData = await acceptResponse.json();
+        throw new Error(acceptData.error || 'Failed to accept trade offer');
+      }
+      
+      const acceptResult = await acceptResponse.json();
       
       setStatus('success');
       setStatusMessage('Trade accepted successfully for product: ' + product.title);

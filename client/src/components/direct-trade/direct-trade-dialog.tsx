@@ -80,14 +80,12 @@ export default function DirectTradeDialog({
     
     try {
       // Create direct trade offer
-      const response = await apiRequest("POST", "/api/direct-trade/offer", {
+      const response = await apiRequest("POST", "/api/direct-trade-offers", {
         productId: productId,
-        offeredItem: {
-          name: data.offeredItemName,
-          description: data.offeredItemDescription,
-          value: data.offeredItemValue,
-          images: data.offeredItemImages,
-        },
+        offeredItemName: data.offeredItemName,
+        offeredItemDescription: data.offeredItemDescription,
+        offeredItemValue: data.offeredItemValue,
+        offeredItemImages: data.offeredItemImages,
         notes: data.notes,
       });
       

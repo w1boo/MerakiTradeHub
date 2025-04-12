@@ -24,7 +24,7 @@ export default function TradeOffersPage() {
   const [activeTab, setActiveTab] = useState<"received" | "sent">("received");
 
   // Fetch the trade messages directly
-  const { data: tradeMessagesData, isLoading } = useQuery<{
+  const { data: tradeMessagesData, isLoading: isLoadingMessages } = useQuery<{
     conversations: number;
     allMessages: number;
     tradeMessages: Message[];
@@ -38,6 +38,14 @@ export default function TradeOffersPage() {
     queryKey: ["/api/conversations"],
     enabled: !!user,
   });
+  
+  // Fetch direct trade offers
+  const { data: directTradeOffers, isLoading: isLoadingOffers } = useQuery<any[]>({
+    queryKey: ["/api/direct-trade-offers"],
+    enabled: !!user,
+  });
+
+  const isLoading = isLoadingMessages || isLoadingOffers;
 
   // Get the trade messages from the response
   const tradeMessages = tradeMessagesData?.tradeMessages || [];
