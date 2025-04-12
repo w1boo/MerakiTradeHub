@@ -144,10 +144,12 @@ export function TradeOfferForm({ productId, sellerId, productTitle, onSuccess }:
             offerValue={formData.offerValue}
             offerItemName={formData.offerItemName}
             offerItemDescription={formData.offerItemDescription}
+            offerItemImage={formData.offerItemImage}
             onSuccess={() => {
               form.reset();
               setStep("form");
               setFormData(null);
+              setUploadedImage(null);
               if (onSuccess) onSuccess();
             }}
           />

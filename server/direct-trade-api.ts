@@ -23,6 +23,7 @@ export async function createDirectTradeOffer(req: Request, res: Response) {
       offerValue, 
       offerItemName,
       offerItemDescription,
+      offerItemImage,
       status
     } = req.body;
 
@@ -51,6 +52,7 @@ export async function createDirectTradeOffer(req: Request, res: Response) {
       offerValue,
       offerItemName,
       offerItemDescription,
+      offerItemImage, // Add the image URL
       createdAt: new Date(),
       updatedAt: new Date()
     });
@@ -285,6 +287,7 @@ export async function confirmDirectTrade(req: Request, res: Response) {
         tradeOfferId: tradeOffer.id,
         offerItemName: tradeOffer.offerItemName,
         offerItemDescription: tradeOffer.offerItemDescription,
+        offerItemImage: tradeOffer.offerItemImage, // Add the image URL
         offerValue: tradeOffer.offerValue,
         escrowAmount: escrowAmount,
         escrowReleased: escrowAmount - platformFee

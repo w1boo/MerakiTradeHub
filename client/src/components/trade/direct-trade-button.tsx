@@ -11,6 +11,7 @@ interface DirectTradeButtonProps {
   offerValue: number;
   offerItemName: string;
   offerItemDescription: string;
+  offerItemImage?: string;
   onSuccess?: () => void;
 }
 
@@ -20,6 +21,7 @@ export function DirectTradeButton({
   offerValue,
   offerItemName,
   offerItemDescription,
+  offerItemImage,
   onSuccess
 }: DirectTradeButtonProps) {
   const { toast } = useToast();
@@ -37,6 +39,7 @@ export function DirectTradeButton({
         offerValue,
         offerItemName,
         offerItemDescription,
+        offerItemImage,
         status: "pending",
       });
       
