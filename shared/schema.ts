@@ -67,6 +67,10 @@ export const tradeOffers = pgTable("trade_offers", {
   buyerConfirmed: boolean("buyer_confirmed").default(false).notNull(),
   sellerConfirmed: boolean("seller_confirmed").default(false).notNull(),
   relatedMessageId: integer("related_message_id"),
+  offerItemName: text("offer_item_name"),
+  offerItemDescription: text("offer_item_description"),
+  offerItemImages: text("offer_item_images").array(),
+  isDirect: boolean("is_direct").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -164,6 +168,10 @@ export const insertTradeOfferSchema = createInsertSchema(tradeOffers).pick({
   buyerConfirmed: true,
   sellerConfirmed: true,
   relatedMessageId: true,
+  offerItemName: true,
+  offerItemDescription: true,
+  offerItemImages: true,
+  isDirect: true,
 });
 
 export const insertMessageSchema = createInsertSchema(messages).pick({

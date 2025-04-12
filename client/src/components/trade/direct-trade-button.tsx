@@ -1,8 +1,9 @@
 import { useState } from "react";
+import { useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { TradeOffer } from "@shared/schema";
 import { Loader2 } from "lucide-react";
 
 interface DirectTradeButtonProps {
@@ -22,73 +23,82 @@ export function DirectTradeButton({
   offerItemName,
   offerItemDescription,
   offerItemImages = [],
-  onSuccess
+  onSuccess,
 }: DirectTradeButtonProps) {
-  const [loading, setLoading] = useState(false);
   const { toast } = useToast();
-  const queryClient = useQueryClient();
+  const [isSubmitted, setIsSubmitted] = useState(false);
 
-  const createTradeMutation = useMutation({
+  const directTradeMutation = useMutation({
     mutationFn: async () => {
-      // Create trade offer directly without message
-      const res = await apiRequest("POST", "/api/direct-trade", {
-        productId,
-        sellerId,
-        offerValue,
-        offerItemName,
-        offerItemDescription,
-        offerItemImages
-      });
-      
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || "Failed to create trade offer");
+      try {
+        const response = await apiRequest("POST", "/api/direct-trade", {
+          productId,
+          sellerId,
+          offerValue,
+          offerItemName,
+          offerItemDescription,
+          offerItemImages,
+          isDirect: true,
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || "Failed to submit trade offer");
+        }
+        
+        return await response.json() as TradeOffer;
+      } catch (error: any) {
+        console.error("Trade offer error:", error);
+        throw new Error(error.message || "Failed to submit trade offer");
       }
-      
-      return await res.json();
     },
     onSuccess: (data) => {
       toast({
-        title: "Trade offer sent",
-        description: "Your trade offer has been sent to the seller.",
+        title: "Trade Offer Sent",
+        description: "Your trade offer has been successfully sent to the seller.",
       });
       
-      // Invalidate relevant queries
-      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/trade-offers"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/direct-trade"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
       
-      if (onSuccess) onSuccess();
+      setIsSubmitted(true);
+      
+      if (onSuccess) {
+        onSuccess();
+      }
     },
     onError: (error: Error) => {
-      console.error("Error creating trade offer:", error);
       toast({
-        title: "Error creating trade offer",
-        description: error.message || "Something went wrong. Please try again.",
+        title: "Trade Offer Failed",
+        description: error.message || "Failed to submit trade offer. Please try again.",
         variant: "destructive",
       });
     },
   });
 
-  const handleCreateTrade = async () => {
-    setLoading(true);
-    try {
-      await createTradeMutation.mutateAsync();
-    } finally {
-      setLoading(false);
-    }
-  };
+  if (isSubmitted) {
+    return (
+      <Button variant="outline" disabled className="w-full">
+        Offer Submitted
+      </Button>
+    );
+  }
+
+  if (directTradeMutation.isPending) {
+    return (
+      <Button disabled className="w-full">
+        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+        Submitting...
+      </Button>
+    );
+  }
 
   return (
-    <Button
-      variant="default"
-      onClick={handleCreateTrade}
-      disabled={loading || createTradeMutation.isPending}
-      className="w-full bg-gradient-to-r from-indigo-500 to-indigo-700 hover:from-indigo-600 hover:to-indigo-800"
+    <Button 
+      onClick={() => directTradeMutation.mutate()}
+      className="w-full"
     >
-      {(loading || createTradeMutation.isPending) ? (
-        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-      ) : null}
-      Send Trade Offer
+      Submit Trade Offer
     </Button>
   );
 }
