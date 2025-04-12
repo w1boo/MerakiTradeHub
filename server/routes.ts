@@ -321,36 +321,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Messaging routes
   app.get("/api/conversations", ensureAuthenticated, async (req, res) => {
     try {
-      const conversations = await storage.getUserConversations(req.user!.id);
+      const userId = req.user!.id;
+      console.log(`Fetching conversations for user ${userId}`);
+      
+      const conversations = await storage.getUserConversations(userId);
+      console.log(`Found ${conversations.length} conversations for user ${userId}`);
 
       // Fetch additional data for each conversation
       const enhancedConversations = await Promise.all(conversations.map(async (conversation) => {
-        const otherUserId = conversation.user1Id === req.user!.id ? conversation.user2Id : conversation.user1Id;
-        const otherUser = await storage.getUser(otherUserId);
+        try {
+          const otherUserId = conversation.user1Id === userId ? conversation.user2Id : conversation.user1Id;
+          const otherUser = await storage.getUser(otherUserId);
+          
+          if (!otherUser) {
+            console.error(`Other user ${otherUserId} not found for conversation ${conversation.id}`);
+            return null;
+          }
 
-        // Get the last message for this conversation
-        let lastMessage = null;
-        if (conversation.lastMessageId) {
-          // Find and get the message by id
+          // Get messages for this conversation
           const messages = await storage.getMessages(conversation.id);
-          lastMessage = messages.find(msg => msg.id === conversation.lastMessageId) || null;
+          console.log(`Found ${messages.length} messages for conversation ${conversation.id}`);
+          
+          // Get the last message for this conversation
+          let lastMessage = null;
+          if (conversation.lastMessageId) {
+            lastMessage = messages.find(msg => msg.id === conversation.lastMessageId) || null;
+            
+            if (!lastMessage && messages.length > 0) {
+              // If lastMessageId doesn't match any message but we have messages,
+              // use the most recent one
+              lastMessage = messages[messages.length - 1];
+              
+              // Update the conversation with correct lastMessageId
+              await storage.updateConversation(conversation.id, {
+                lastMessageId: lastMessage.id
+              });
+            }
+          } else if (messages.length > 0) {
+            // If no lastMessageId but we have messages, use the most recent one
+            lastMessage = messages[messages.length - 1];
+            
+            // Update the conversation with new lastMessageId
+            await storage.updateConversation(conversation.id, {
+              lastMessageId: lastMessage.id
+            });
+          }
+
+          // Count unread messages
+          const unreadCount = messages.filter(
+            msg => msg.receiverId === userId && !msg.isRead
+          ).length;
+
+          return {
+            ...conversation,
+            otherUser,
+            lastMessage,
+            unreadCount
+          };
+        } catch (err) {
+          console.error(`Error processing conversation ${conversation.id}:`, err);
+          return null;
         }
-
-        // Count unread messages
-        const messages = await storage.getMessages(conversation.id);
-        const unreadCount = messages.filter(
-          msg => msg.receiverId === req.user!.id && !msg.isRead
-        ).length;
-
-        return {
-          ...conversation,
-          otherUser,
-          lastMessage,
-          unreadCount
-        };
       }));
 
-      res.json(enhancedConversations);
+      // Filter out null values (conversations with missing users or errors)
+      const validConversations = enhancedConversations.filter(Boolean);
+      console.log(`Returning ${validConversations.length} valid conversations for user ${userId}`);
+      
+      res.json(validConversations);
     } catch (error) {
       console.error("Error fetching conversations:", error);
       res.status(500).json({ error: "Failed to fetch conversations" });
@@ -359,33 +397,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/conversations/:id", ensureAuthenticated, async (req, res) => {
     try {
+      const userId = req.user!.id;
       const conversationId = parseInt(req.params.id);
+      
+      if (isNaN(conversationId)) {
+        return res.status(400).json({ error: "Invalid conversation ID" });
+      }
+      
+      console.log(`Fetching conversation ${conversationId} for user ${userId}`);
       const conversation = await storage.getConversation(conversationId);
 
       if (!conversation) {
+        console.log(`Conversation ${conversationId} not found`);
         return res.status(404).json({ error: "Conversation not found" });
       }
 
       // Check if user is part of the conversation
-      if (conversation.user1Id !== req.user!.id && 
-          conversation.user2Id !== req.user!.id) {
+      if (conversation.user1Id !== userId && 
+          conversation.user2Id !== userId) {
+        console.log(`User ${userId} is not authorized to view conversation ${conversationId}`);
         return res.status(403).json({ error: "Unauthorized" });
       }
 
       // Get messages for conversation
       const messages = await storage.getMessages(conversationId);
+      console.log(`Found ${messages.length} messages for conversation ${conversationId}`);
 
       // Get other user details
-      const otherUserId = conversation.user1Id === req.user!.id ? conversation.user2Id : conversation.user1Id;
+      const otherUserId = conversation.user1Id === userId ? conversation.user2Id : conversation.user1Id;
       const otherUser = await storage.getUser(otherUserId);
-
-      // Mark messages as read
-      for (const message of messages) {
-        if (message.receiverId === req.user!.id && !message.isRead) {
-          await storage.markMessageAsRead(message.id);
-        }
+      
+      if (!otherUser) {
+        console.error(`Other user ${otherUserId} not found for conversation ${conversationId}`);
+        return res.status(500).json({ error: "Failed to load conversation partner details" });
       }
 
+      // Mark messages as read
+      let markedCount = 0;
+      for (const message of messages) {
+        if (message.receiverId === userId && !message.isRead) {
+          await storage.markMessageAsRead(message.id);
+          markedCount++;
+        }
+      }
+      
+      if (markedCount > 0) {
+        console.log(`Marked ${markedCount} messages as read for user ${userId}`);
+      }
+
+      console.log(`Successfully fetched conversation ${conversationId} with ${messages.length} messages`);
       res.json({
         conversation,
         messages,
@@ -399,13 +459,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // API route to fetch products for trade messages
   app.get("/api/products/trade-messages", ensureAuthenticated, async (req, res) => {
     try {
-      // Get all products - in a real app we'd filter by the ones referenced in messages
-      const products = [];
-      for (let i = 1; i <= 100; i++) {
-        const product = await storage.getProduct(i);
+      const userId = req.user!.id;
+      console.log(`Fetching products for trade messages for user ${userId}`);
+      
+      // Get user's conversations
+      const conversations = await storage.getUserConversations(userId);
+      const conversationIds = conversations.map(c => c.id);
+      
+      // Get all messages from these conversations
+      const productIds = new Set<number>();
+      
+      for (const conversationId of conversationIds) {
+        const messages = await storage.getMessages(conversationId);
+        
+        // Filter for trade messages with product IDs
+        for (const message of messages) {
+          if (message.isTrade && message.productId) {
+            productIds.add(message.productId);
+          }
+        }
+      }
+      
+      console.log(`Found ${productIds.size} unique product IDs in trade messages`);
+      
+      // Fetch products
+      const products: Product[] = [];
+      // Use Promise.all with map for parallel execution
+      const productPromises = Array.from(productIds).map(productId => 
+        storage.getProduct(productId)
+      );
+      
+      const fetchedProducts = await Promise.all(productPromises);
+      
+      // Add all non-null products to the result array
+      for (const product of fetchedProducts) {
         if (product) {
           products.push(product);
         }
+      }
+      
+      // If no products found in trade messages, add 10 most recent products as fallback
+      if (products.length === 0) {
+        console.log("No products found in trade messages, fetching recent products as fallback");
+        const recentProducts = await storage.getRecentProducts(10);
+        products.push(...recentProducts);
       }
       
       // Convert to a map with product id as key
@@ -414,6 +511,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return map;
       }, {});
       
+      console.log(`Returning ${Object.keys(productMap).length} products for trade messages`);
       res.json(productMap);
     } catch (error) {
       console.error("Error fetching products for trade messages:", error);
@@ -427,35 +525,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user!.id;
       const { messageId, role } = req.body;
       
+      console.log(`Trade confirmation request - User ${userId}, Message ${messageId}, Role: ${role}`);
+      
       if (!messageId || !role || (role !== 'buyer' && role !== 'seller')) {
+        console.error(`Invalid trade confirmation parameters: messageId=${messageId}, role=${role}`);
         return res.status(400).json({ error: "Invalid request parameters" });
       }
       
+      // Parse messageId as number if it's a string
+      const messageIdNum = typeof messageId === 'string' ? parseInt(messageId) : messageId;
+      
+      if (isNaN(messageIdNum)) {
+        console.error(`Invalid message ID format: ${messageId}`);
+        return res.status(400).json({ error: "Invalid message ID format" });
+      }
+      
       // Get the message
-      const message = await storage.getMessage(messageId);
+      const message = await storage.getMessage(messageIdNum);
       if (!message) {
+        console.error(`Message ${messageIdNum} not found for trade confirmation`);
         return res.status(404).json({ error: "Message not found" });
       }
       
+      console.log(`Found message ${messageIdNum} for trade confirmation: ${JSON.stringify(message)}`);
+      
       // Verify it's a trade message
-      if (!message.isTrade || !message.productId) {
+      if (message.isTrade !== true || !message.productId) {
+        console.error(`Message ${messageIdNum} is not a valid trade message`);
         return res.status(400).json({ error: "Not a trade message" });
       }
       
       // Get the product
       const product = await storage.getProduct(message.productId);
       if (!product) {
+        console.error(`Product ${message.productId} not found for trade confirmation`);
         return res.status(404).json({ error: "Product not found" });
       }
+      
+      console.log(`Found product for trade: ${product.title} (ID: ${product.id})`);
       
       // Verify user's role and permissions
       if (role === 'buyer') {
         // For simplicity, we consider the sender as buyer if not the seller
         if (userId !== message.senderId && userId !== message.receiverId) {
+          console.error(`User ${userId} not authorized as buyer for message ${messageIdNum}`);
           return res.status(403).json({ error: "Not authorized as buyer" });
         }
       } else if (role === 'seller') {
         if (userId !== product.sellerId) {
+          console.error(`User ${userId} not authorized as seller for product ${product.id}`);
           return res.status(403).json({ error: "Not authorized as seller" });
         }
       }
@@ -465,13 +583,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ? { tradeConfirmedBuyer: true } 
         : { tradeConfirmedSeller: true };
       
-      const updatedMessage = await storage.updateMessage(messageId, updates);
+      console.log(`Updating message ${messageIdNum} with: ${JSON.stringify(updates)}`);
+      const updatedMessage = await storage.updateMessage(messageIdNum, updates);
+      
+      if (!updatedMessage) {
+        console.error(`Failed to update message ${messageIdNum} with trade confirmation`);
+        return res.status(500).json({ error: "Failed to update message" });
+      }
       
       // Check if trade is fully confirmed
-      const isFullyConfirmed = updatedMessage?.tradeConfirmedBuyer && updatedMessage?.tradeConfirmedSeller;
+      const isFullyConfirmed = updatedMessage.tradeConfirmedBuyer === true && 
+                               updatedMessage.tradeConfirmedSeller === true;
+      
+      console.log(`Trade confirmation status for message ${messageIdNum}: ${isFullyConfirmed ? 'Fully confirmed' : 'Partially confirmed'}`);
       
       // If fully confirmed, create a transaction
       if (isFullyConfirmed) {
+        console.log(`Creating transaction for fully confirmed trade of product ${product.id}`);
+        
         const buyerId = message.senderId === product.sellerId 
           ? message.receiverId 
           : message.senderId;
@@ -504,10 +633,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ]
         });
         
+        console.log(`Created trade transaction: ${tradeTransaction.id} for product ${product.id}`);
+        
         // Update product status
         await storage.updateProduct(product.id, { status: 'sold' });
+        console.log(`Updated product ${product.id} status to 'sold'`);
       }
       
+      console.log(`Trade confirmation successful for message ${messageIdNum}`);
       res.json({
         message: updatedMessage,
         isFullyConfirmed
