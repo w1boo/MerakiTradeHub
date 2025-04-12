@@ -148,24 +148,24 @@ export function TransactionDetail({
           <div className="space-y-2">
             <div className="flex justify-between">
               <span className="text-neutral-600">Item Price</span>
-              <span className="font-medium">${transaction.amount.toFixed(2)}</span>
+              <span className="font-medium">{transaction.amount.toLocaleString('vi-VN')} ₫</span>
             </div>
             <div className="flex justify-between">
               <span className="text-neutral-600">
                 Platform Fee ({Math.round((transaction.platformFee / transaction.amount) * 100)}%)
               </span>
-              <span className="font-medium">${transaction.platformFee.toFixed(2)}</span>
+              <span className="font-medium">{transaction.platformFee.toLocaleString('vi-VN')} ₫</span>
             </div>
             {transaction.shipping && (
               <div className="flex justify-between">
                 <span className="text-neutral-600">Shipping</span>
-                <span className="font-medium">${transaction.shipping.toFixed(2)}</span>
+                <span className="font-medium">{transaction.shipping.toLocaleString('vi-VN')} ₫</span>
               </div>
             )}
             <div className="flex justify-between text-lg font-medium pt-2 border-t border-neutral-200">
               <span>Total</span>
               <span>
-                ${(transaction.amount + (transaction.shipping || 0)).toFixed(2)}
+                {(transaction.amount + (transaction.shipping || 0)).toLocaleString('vi-VN')} ₫
               </span>
             </div>
           </div>

@@ -111,7 +111,7 @@ export default function TransactionTable({ limit }: { limit?: number }) {
                       {transaction.type}
                     </TableCell>
                     <TableCell className="font-medium">
-                      ${transaction.amount.toFixed(2)}
+                      {transaction.amount.toLocaleString('vi-VN')} ₫
                     </TableCell>
                     <TableCell>
                       <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusClass(transaction.status)}`}>
