@@ -23,27 +23,27 @@ export default function TradeOffersPage() {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<"received" | "sent">("received");
 
-  // Fetch the user's conversations
-  const { data: conversationsData, isLoading } = useQuery<any[]>({
+  // Fetch the trade messages directly
+  const { data: tradeMessagesData, isLoading } = useQuery<{
+    conversations: number;
+    allMessages: number;
+    tradeMessages: Message[];
+  }>({
+    queryKey: ["/api/debug/trade-messages"],
+    enabled: !!user,
+  });
+
+  // Also fetch conversations for user info
+  const { data: conversationsData } = useQuery<any[]>({
     queryKey: ["/api/conversations"],
     enabled: !!user,
   });
 
-  // Extract trade messages from conversations
-  const tradeMessages = conversationsData?.flatMap((conversation) => {
-    // Check if conversation has messages property
-    if (!conversation.messages || !Array.isArray(conversation.messages)) {
-      console.log('No messages array found in conversation:', conversation.id);
-      return [];
-    }
-
-    // Filter for trade messages
-    return conversation.messages.filter(
-      (msg: Message) => msg.isTrade === true
-    );
-  }) || [];
+  // Get the trade messages from the response
+  const tradeMessages = tradeMessagesData?.tradeMessages || [];
   
   console.log('Trade messages found:', tradeMessages.length);
+  console.log('Trade messages data:', tradeMessagesData);
 
   // Filter messages by sent vs received
   const receivedTradeOffers = tradeMessages.filter(

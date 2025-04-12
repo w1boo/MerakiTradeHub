@@ -319,6 +319,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Messaging routes
+  // Debugging endpoint for trade messages
+  app.get("/api/debug/trade-messages", ensureAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const allMessages = [];
+      
+      // Get all conversations for the user
+      const conversations = await storage.getUserConversations(userId);
+      
+      // For each conversation, get all messages
+      for (const conversation of conversations) {
+        const messages = await storage.getMessages(conversation.id);
+        allMessages.push(...messages);
+      }
+      
+      // Filter for trade messages only
+      const tradeMessages = allMessages.filter(msg => msg.isTrade === true);
+      
+      res.json({
+        conversations: conversations.length,
+        allMessages: allMessages.length,
+        tradeMessages: tradeMessages
+      });
+    } catch (error) {
+      console.error("Error debugging trade messages:", error);
+      res.status(500).json({ error: "Error debugging trade messages" });
+    }
+  });
+
   app.get("/api/conversations", ensureAuthenticated, async (req, res) => {
     try {
       const userId = req.user!.id;
