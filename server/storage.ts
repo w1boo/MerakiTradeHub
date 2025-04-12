@@ -329,6 +329,9 @@ export class MemStorage implements IStorage {
       buyerConfirmed: tradeOffer.buyerConfirmed || false,
       sellerConfirmed: tradeOffer.sellerConfirmed || false,
       relatedMessageId: tradeOffer.relatedMessageId || null,
+      offerItemName: tradeOffer.offerItemName || null,
+      offerItemDescription: tradeOffer.offerItemDescription || null,
+      offerItemImage: tradeOffer.offerItemImage || null,
       createdAt: timestamp,
       updatedAt: timestamp
     };

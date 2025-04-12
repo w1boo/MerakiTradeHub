@@ -43,7 +43,7 @@ export async function createDirectTradeOffer(req: Request, res: Response) {
       return res.status(404).json({ error: "Product not found" });
     }
 
-    // Create the trade offer
+    // Create the trade offer - convert single image to array for the schema
     const tradeOffer = await storage.createTradeOffer({
       productId,
       sellerId,
@@ -52,7 +52,8 @@ export async function createDirectTradeOffer(req: Request, res: Response) {
       offerValue,
       offerItemName,
       offerItemDescription,
-      offerItemImage, // Add the image URL
+      offerItemImages: offerItemImage ? [offerItemImage] : [], // Convert single image to array
+      isDirect: true,
       createdAt: new Date(),
       updatedAt: new Date()
     });
@@ -287,7 +288,7 @@ export async function confirmDirectTrade(req: Request, res: Response) {
         tradeOfferId: tradeOffer.id,
         offerItemName: tradeOffer.offerItemName,
         offerItemDescription: tradeOffer.offerItemDescription,
-        offerItemImage: tradeOffer.offerItemImage, // Add the image URL
+        offerItemImages: tradeOffer.offerItemImages, // Use the images array from trade offer
         offerValue: tradeOffer.offerValue,
         escrowAmount: escrowAmount,
         escrowReleased: escrowAmount - platformFee
