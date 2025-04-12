@@ -114,6 +114,17 @@ export default function ChatInterface({ conversationId }: ChatInterfaceProps) {
   const handleSendMessage = () => {
     if (!user || !conversationData || !message.trim()) return;
     
+    // Check if otherUser exists and has an id to prevent error
+    if (!conversationData.otherUser || typeof conversationData.otherUser.id === 'undefined') {
+      console.error('Other user data is missing in conversation');
+      toast({
+        title: 'Error sending message',
+        description: 'Recipient information is missing. Please try again or reload the page.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
     sendMessageMutation.mutate({
       content: message,
       receiverId: conversationData.otherUser.id,
