@@ -5,6 +5,17 @@ import { Badge } from "@/components/ui/badge";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, CheckCircle, XCircle } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+
+interface Product {
+  id: number;
+  title: string;
+  description: string;
+  images: string[];
+  price: number;
+  tradeValue: number;
+  status: string;
+}
 
 interface DirectTradeOffer {
   id: number;
@@ -17,6 +28,7 @@ interface DirectTradeOffer {
   offerValue: number;
   createdAt: string;
   escrowAmount?: number;
+  product?: Product;
 }
 
 interface DirectTradesListProps {
@@ -37,6 +49,35 @@ export function DirectTradesList({ type, userId }: DirectTradesListProps) {
       }
       return response.json() as Promise<DirectTradeOffer[]>;
     },
+  });
+  
+  // Fetch product details for each trade offer
+  const productIds = offers?.map(offer => offer.productId) || [];
+  const productQueries = useQuery({
+    queryKey: ["products", productIds],
+    queryFn: async () => {
+      // Only fetch if we have trade offers
+      if (productIds.length === 0) return {};
+      
+      // Fetch each product
+      const productMap: Record<number, Product> = {};
+      await Promise.all(
+        productIds.map(async (id) => {
+          try {
+            const response = await fetch(`/api/products/${id}`);
+            if (response.ok) {
+              const product = await response.json();
+              productMap[id] = product;
+            }
+          } catch (error) {
+            console.error(`Error fetching product ${id}:`, error);
+          }
+        })
+      );
+      
+      return productMap;
+    },
+    enabled: productIds.length > 0,
   });
 
   if (isLoading) {
@@ -179,9 +220,45 @@ export function DirectTradesList({ type, userId }: DirectTradesListProps) {
                 </div>
               </div>
               <div>
-                <h3 className="font-medium mb-1">Product ID</h3>
+                <h3 className="font-medium mb-1">Product Details</h3>
                 <div className="bg-muted p-3 rounded-md">
-                  <p>#{offer.productId}</p>
+                  {productQueries.isLoading ? (
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-3/4" />
+                      <Skeleton className="h-3 w-full" />
+                    </div>
+                  ) : productQueries.error ? (
+                    <p className="text-red-500 text-sm">Error loading product details</p>
+                  ) : productQueries.data && productQueries.data[offer.productId] ? (
+                    <div>
+                      <div className="flex mb-2">
+                        {productQueries.data[offer.productId].images && 
+                         productQueries.data[offer.productId].images.length > 0 && (
+                          <div className="mr-3 flex-shrink-0">
+                            <img 
+                              src={productQueries.data[offer.productId].images[0]} 
+                              alt={productQueries.data[offer.productId].title} 
+                              className="h-12 w-12 object-cover rounded-md"
+                            />
+                          </div>
+                        )}
+                        <div>
+                          <p className="font-medium">{productQueries.data[offer.productId].title}</p>
+                          <p className="text-sm text-muted-foreground line-clamp-2">
+                            {productQueries.data[offer.productId].description}
+                          </p>
+                        </div>
+                      </div>
+                      {productQueries.data[offer.productId].price && (
+                        <p className="text-sm font-medium mt-2">
+                          {productQueries.data[offer.productId].price.toLocaleString('vi-VN')} ₫
+                        </p>
+                      )}
+                      <div className="text-xs text-muted-foreground mt-1">ID: #{offer.productId}</div>
+                    </div>
+                  ) : (
+                    <p>Product ID: #{offer.productId}</p>
+                  )}
                 </div>
               </div>
             </div>
