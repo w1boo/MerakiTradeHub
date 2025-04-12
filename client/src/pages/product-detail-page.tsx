@@ -217,7 +217,7 @@ Would you consider a trade valued at ${tradeValue.toLocaleString('vi-VN')} ₫?
 Please let me know if you're open to discussing this trade.`;
       
       const res = await apiRequest("POST", "/api/messages", {
-        recipientId: product.sellerId,
+        receiverId: product.sellerId,
         content: tradeMessage,
         productId: product.id,
         isTrade: true,

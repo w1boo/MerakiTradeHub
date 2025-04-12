@@ -5,7 +5,7 @@ import { setupAuth } from "./auth";
 import { z } from "zod";
 import { 
   insertProductSchema, insertTransactionSchema, insertMessageSchema, 
-  insertDepositSchema, insertWithdrawalSchema, InsertProduct
+  insertDepositSchema, insertWithdrawalSchema, InsertProduct, Product
 } from "@shared/schema";
 import { randomBytes } from "crypto";
 
@@ -409,7 +409,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Convert to a map with product id as key
-      const productMap = products.reduce((map, product) => {
+      const productMap = products.reduce<Record<number, Product>>((map, product) => {
         map[product.id] = product;
         return map;
       }, {});
@@ -468,7 +468,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const updatedMessage = await storage.updateMessage(messageId, updates);
       
       // Check if trade is fully confirmed
-      const isFullyConfirmed = updatedMessage.tradeConfirmedBuyer && updatedMessage.tradeConfirmedSeller;
+      const isFullyConfirmed = updatedMessage?.tradeConfirmedBuyer && updatedMessage?.tradeConfirmedSeller;
       
       // If fully confirmed, create a transaction
       if (isFullyConfirmed) {
