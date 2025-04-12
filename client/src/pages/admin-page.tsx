@@ -59,22 +59,22 @@ export default function AdminPage() {
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [isEditUserModalOpen, setIsEditUserModalOpen] = useState(false);
   const [isEditProductModalOpen, setIsEditProductModalOpen] = useState(false);
-  
+
   // Fetch all users
   const { data: users, isLoading: isLoadingUsers } = useQuery<User[]>({
     queryKey: ["/api/admin/users"],
   });
-  
+
   // Fetch all products
   const { data: products, isLoading: isLoadingProducts } = useQuery<Product[]>({
     queryKey: ["/api/products"],
   });
-  
+
   // Fetch all transactions
   const { data: transactions, isLoading: isLoadingTransactions } = useQuery<Transaction[]>({
     queryKey: ["/api/admin/transactions"],
   });
-  
+
   // Update user mutation
   const updateUserMutation = useMutation({
     mutationFn: async (data: { id: number, updates: Partial<User> }) => {
@@ -97,7 +97,7 @@ export default function AdminPage() {
       });
     }
   });
-  
+
   // Update product mutation
   const updateProductMutation = useMutation({
     mutationFn: async (data: { id: number, updates: Partial<Product> }) => {
@@ -120,7 +120,37 @@ export default function AdminPage() {
       });
     }
   });
-  
+
+  // Add balance mutation
+  const addBalanceMutation = useMutation({
+    mutationFn: async (data: { userId: number, amount: number }) => {
+      const res = await apiRequest("POST", `/api/admin/users/${data.userId}/balance`, { amount: data.amount });
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Balance updated",
+        description: "User balance has been updated successfully.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+    }
+  });
+
+  // Delete product mutation
+  const deleteProductMutation = useMutation({
+    mutationFn: async (productId: number) => {
+      const res = await apiRequest("DELETE", `/api/admin/products/${productId}`);
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Product deleted",
+        description: "Product has been deleted successfully.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
+    }
+  });
+
   // Filter data based on search term
   const filteredUsers = users?.filter(user => 
     user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -128,47 +158,47 @@ export default function AdminPage() {
     (user.firstName && user.firstName.toLowerCase().includes(searchTerm.toLowerCase())) ||
     (user.lastName && user.lastName.toLowerCase().includes(searchTerm.toLowerCase()))
   );
-  
+
   const filteredProducts = products?.filter(product => 
     product.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
     product.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (product.location && product.location.toLowerCase().includes(searchTerm.toLowerCase()))
   );
-  
+
   const filteredTransactions = transactions?.filter(transaction => 
     transaction.transactionId.toLowerCase().includes(searchTerm.toLowerCase()) ||
     transaction.status.toLowerCase().includes(searchTerm.toLowerCase())
   );
-  
+
   // Format date
   const formatDate = (date: Date) => {
     return format(new Date(date), 'MMM dd, yyyy');
   };
-  
+
   // Handle make admin
   const handleToggleAdmin = (user: User) => {
     if (!user) return;
-    
+
     updateUserMutation.mutate({
       id: user.id,
       updates: { isAdmin: !user.isAdmin }
     });
   };
-  
+
   // Handle product status change
   const handleProductStatusChange = (product: Product, status: string) => {
     if (!product) return;
-    
+
     updateProductMutation.mutate({
       id: product.id,
       updates: { status }
     });
   };
-  
+
   // Handle edit user
   const handleEditUser = () => {
     if (!selectedUser) return;
-    
+
     // In a real application, you would collect updated user data
     // For this demo, we'll just toggle the admin status
     updateUserMutation.mutate({
@@ -176,23 +206,41 @@ export default function AdminPage() {
       updates: { isAdmin: !selectedUser.isAdmin }
     });
   };
-  
+
+  // Handle add balance
+  const handleAddBalance = (userId: number) => {
+    const amount = prompt("Enter amount to add (use negative for deduction):");
+    if (amount) {
+      addBalanceMutation.mutate({
+        userId,
+        amount: parseFloat(amount)
+      });
+    }
+  };
+
+  // Handle delete product
+  const handleDeleteProduct = (productId: number) => {
+    if (confirm("Are you sure you want to delete this product?")) {
+      deleteProductMutation.mutate(productId);
+    }
+  };
+
   // Calculate platform stats
   const getTotalTransactionValue = () => {
     if (!transactions) return 0;
     return transactions.reduce((sum, transaction) => sum + transaction.amount, 0);
   };
-  
+
   const getTotalFees = () => {
     if (!transactions) return 0;
     return transactions.reduce((sum, transaction) => sum + transaction.platformFee, 0);
   };
-  
+
   const getPendingTransactionsCount = () => {
     if (!transactions) return 0;
     return transactions.filter(t => t.status.toLowerCase() === 'pending').length;
   };
-  
+
   // Get status color class
   const getStatusClass = (status: string) => {
     switch (status.toLowerCase()) {
@@ -208,7 +256,7 @@ export default function AdminPage() {
         return "bg-neutral-100 text-neutral-600";
     }
   };
-  
+
   // Get user initials for avatar
   const getUserInitials = (user: User) => {
     if (user.firstName && user.lastName) {
@@ -218,11 +266,11 @@ export default function AdminPage() {
     }
     return "U";
   };
-  
+
   return (
     <div className="flex flex-col min-h-screen">
       <Header />
-      
+
       <main className="flex-grow pb-6">
         <div className="container mx-auto px-4 py-6">
           <div className="flex justify-between items-center mb-6">
@@ -237,7 +285,7 @@ export default function AdminPage() {
               />
             </div>
           </div>
-          
+
           {/* Stats Overview */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
             <Card className="bg-white">
@@ -248,7 +296,7 @@ export default function AdminPage() {
                 <div className="text-3xl font-bold">{users?.length || 0}</div>
               </CardContent>
             </Card>
-            
+
             <Card className="bg-white">
               <CardHeader className="pb-2">
                 <CardTitle className="text-lg">Products</CardTitle>
@@ -257,7 +305,7 @@ export default function AdminPage() {
                 <div className="text-3xl font-bold">{products?.length || 0}</div>
               </CardContent>
             </Card>
-            
+
             <Card className="bg-white">
               <CardHeader className="pb-2">
                 <CardTitle className="text-lg">Transactions</CardTitle>
@@ -267,7 +315,7 @@ export default function AdminPage() {
                 <div className="text-sm text-neutral-500">{transactions?.length || 0} total</div>
               </CardContent>
             </Card>
-            
+
             <Card className="bg-white">
               <CardHeader className="pb-2">
                 <CardTitle className="text-lg">Platform Revenue</CardTitle>
@@ -278,14 +326,14 @@ export default function AdminPage() {
               </CardContent>
             </Card>
           </div>
-          
+
           <Tabs defaultValue="users" className="w-full">
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="users">Users</TabsTrigger>
               <TabsTrigger value="products">Products</TabsTrigger>
               <TabsTrigger value="transactions">Transactions</TabsTrigger>
             </TabsList>
-            
+
             {/* Users Tab */}
             <TabsContent value="users">
               <Card>
@@ -378,6 +426,14 @@ export default function AdminPage() {
                                       </>
                                     )}
                                   </Button>
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm"
+                                    onClick={() => handleAddBalance(user.id)}
+                                  >
+                                    <Icon icon="ri-money-dollar-circle-line mr-1" />
+                                    Add Balance
+                                  </Button>
                                 </div>
                               </TableCell>
                             </TableRow>
@@ -394,7 +450,7 @@ export default function AdminPage() {
                 </CardContent>
               </Card>
             </TabsContent>
-            
+
             {/* Products Tab */}
             <TabsContent value="products">
               <Card>
@@ -473,7 +529,7 @@ export default function AdminPage() {
                                     <Icon icon="ri-edit-line mr-1" />
                                     Edit
                                   </Button>
-                                  
+
                                   {product.status === 'active' ? (
                                     <Button 
                                       variant="destructive" 
@@ -493,6 +549,15 @@ export default function AdminPage() {
                                       Activate
                                     </Button>
                                   )}
+
+                                  <Button 
+                                    variant="destructive" 
+                                    size="sm"
+                                    onClick={() => handleDeleteProduct(product.id)}
+                                  >
+                                    <Icon icon="ri-delete-bin-2-line mr-1" />
+                                    Delete
+                                  </Button>
                                 </div>
                               </TableCell>
                             </TableRow>
@@ -509,7 +574,7 @@ export default function AdminPage() {
                 </CardContent>
               </Card>
             </TabsContent>
-            
+
             {/* Transactions Tab */}
             <TabsContent value="transactions">
               <Card>
@@ -528,7 +593,7 @@ export default function AdminPage() {
                         <div className="text-sm text-neutral-500">Need action</div>
                       </CardContent>
                     </Card>
-                    
+
                     <Card className="bg-neutral-50">
                       <CardContent className="pt-6">
                         <div className="text-lg font-medium mb-2">Platform Fees (Total)</div>
@@ -536,7 +601,7 @@ export default function AdminPage() {
                         <div className="text-sm text-neutral-500">Revenue</div>
                       </CardContent>
                     </Card>
-                    
+
                     <Card className="bg-neutral-50">
                       <CardContent className="pt-6">
                         <div className="text-lg font-medium mb-2">Average Fee</div>
@@ -549,7 +614,7 @@ export default function AdminPage() {
                       </CardContent>
                     </Card>
                   </div>
-                  
+
                   {isLoadingTransactions ? (
                     <div className="space-y-2">
                       {[...Array(5)].map((_, i) => (
@@ -632,9 +697,9 @@ export default function AdminPage() {
           </Tabs>
         </div>
       </main>
-      
+
       <Footer />
-      
+
       {/* Edit User Modal */}
       <Dialog open={isEditUserModalOpen} onOpenChange={setIsEditUserModalOpen}>
         <DialogContent>
@@ -644,7 +709,7 @@ export default function AdminPage() {
               Update user information and permissions
             </DialogDescription>
           </DialogHeader>
-          
+
           {selectedUser && (
             <div className="space-y-4 py-4">
               <div className="flex items-center space-x-4">
@@ -661,7 +726,7 @@ export default function AdminPage() {
                   <p className="text-sm text-neutral-500">@{selectedUser.username}</p>
                 </div>
               </div>
-              
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="firstName">First Name</Label>
@@ -680,7 +745,7 @@ export default function AdminPage() {
                   />
                 </div>
               </div>
-              
+
               <div>
                 <Label htmlFor="email">Email</Label>
                 <Input 
@@ -690,7 +755,7 @@ export default function AdminPage() {
                   placeholder="Email" 
                 />
               </div>
-              
+
               <div>
                 <Label htmlFor="location">Location</Label>
                 <Input 
@@ -699,7 +764,7 @@ export default function AdminPage() {
                   placeholder="Location" 
                 />
               </div>
-              
+
               <div className="flex items-center space-x-2">
                 <input 
                   type="checkbox" 
@@ -712,7 +777,7 @@ export default function AdminPage() {
               </div>
             </div>
           )}
-          
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsEditUserModalOpen(false)}>
               Cancel
@@ -723,7 +788,7 @@ export default function AdminPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      
+
       {/* Edit Product Modal */}
       <Dialog open={isEditProductModalOpen} onOpenChange={setIsEditProductModalOpen}>
         <DialogContent>
@@ -733,7 +798,7 @@ export default function AdminPage() {
               Update product information
             </DialogDescription>
           </DialogHeader>
-          
+
           {selectedProduct && (
             <div className="space-y-4 py-4">
               <div className="grid grid-cols-2 gap-4">
@@ -745,7 +810,7 @@ export default function AdminPage() {
                     placeholder="Product Title" 
                   />
                 </div>
-                
+
                 <div>
                   <Label htmlFor="price">Price</Label>
                   <Input 
@@ -755,7 +820,7 @@ export default function AdminPage() {
                     placeholder="Price" 
                   />
                 </div>
-                
+
                 <div>
                   <Label htmlFor="status">Status</Label>
                   <Select defaultValue={selectedProduct.status}>
@@ -771,7 +836,7 @@ export default function AdminPage() {
                   </Select>
                 </div>
               </div>
-              
+
               <div>
                 <Label htmlFor="description">Description</Label>
                 <textarea 
@@ -782,7 +847,7 @@ export default function AdminPage() {
                   className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm transition-colors"
                 />
               </div>
-              
+
               <div className="flex items-center space-x-8">
                 <div className="flex items-center space-x-2">
                   <input 
@@ -794,7 +859,7 @@ export default function AdminPage() {
                   />
                   <Label htmlFor="allowBuy">Allow Purchase</Label>
                 </div>
-                
+
                 <div className="flex items-center space-x-2">
                   <input 
                     type="checkbox" 
@@ -808,14 +873,14 @@ export default function AdminPage() {
               </div>
             </div>
           )}
-          
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsEditProductModalOpen(false)}>
               Cancel
             </Button>
             <Button onClick={() => {
               if (!selectedProduct) return;
-              
+
               updateProductMutation.mutate({
                 id: selectedProduct.id,
                 updates: { status: selectedProduct.status === 'active' ? 'inactive' : 'active' }
@@ -826,7 +891,7 @@ export default function AdminPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      
+
       {/* Transaction Detail Modal */}
       {selectedTransaction && (
         <TransactionDetail

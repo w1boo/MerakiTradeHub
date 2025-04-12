@@ -514,7 +514,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/admin/transactions", ensureAdmin, async (req, res) => {
+  // Admin route to update user balance
+app.post("/api/admin/users/:id/balance", ensureAdmin, async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id);
+    const { amount } = req.body;
+    
+    const user = await storage.getUser(userId);
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const updatedUser = await storage.updateUser(userId, {
+      balance: user.balance + amount
+    });
+
+    res.json(updatedUser);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to update user balance" });
+  }
+});
+
+// Admin route to delete product
+app.delete("/api/admin/products/:id", ensureAdmin, async (req, res) => {
+  try {
+    const productId = parseInt(req.params.id);
+    const product = await storage.getProduct(productId);
+    
+    if (!product) {
+      return res.status(404).json({ error: "Product not found" });
+    }
+
+    await storage.updateProduct(productId, { status: 'deleted' });
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to delete product" });
+  }
+});
+
+app.get("/api/admin/transactions", ensureAdmin, async (req, res) => {
     try {
       // For simplicity, just fetch the last 50 transactions by ID
       const transactions = [];
