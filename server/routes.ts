@@ -564,200 +564,136 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // API route to confirm a trade
+  // Simplified API route to confirm a trade
   app.post("/api/trade/confirm", ensureAuthenticated, async (req, res) => {
     try {
       const userId = req.user!.id;
       const { messageId, role } = req.body;
       
-      console.log(`=== TRADE CONFIRMATION REQUEST ===`);
-      console.log(`User: ${userId}, Message: ${messageId}, Role: ${role}`);
+      console.log(`--- TRADE ACCEPTANCE REQUEST ---`);
+      console.log(`User: ${userId}, Message ID: ${messageId}, Role: ${role}`);
       
-      // Basic validation
+      // Validate inputs
       if (!messageId || !role || (role !== 'buyer' && role !== 'seller')) {
-        console.error(`Invalid trade confirmation parameters: messageId=${messageId}, role=${role}`);
         return res.status(400).json({ error: "Invalid request parameters" });
       }
       
-      // Parse messageId as number if it's a string
-      const messageIdNum = typeof messageId === 'string' ? parseInt(messageId) : messageId;
-      
-      if (isNaN(messageIdNum)) {
-        console.error(`Invalid message ID format: ${messageId}`);
-        return res.status(400).json({ error: "Invalid message ID format" });
-      }
-      
       // Get the message
-      const message = await storage.getMessage(messageIdNum);
+      const message = await storage.getMessage(messageId);
       if (!message) {
-        console.error(`Message ${messageIdNum} not found for trade confirmation`);
         return res.status(404).json({ error: "Message not found" });
       }
       
-      console.log(`Found message ${messageIdNum} for trade confirmation`);
-      
-      // Verify it's a trade message
-      if (message.isTrade !== true || !message.productId) {
-        console.error(`Message ${messageIdNum} is not a valid trade message`);
+      // Check if it's a trade message with a product
+      if (!message.isTrade || !message.productId) {
         return res.status(400).json({ error: "Not a trade message" });
       }
       
       // Get the product
       const product = await storage.getProduct(message.productId);
       if (!product) {
-        console.error(`Product ${message.productId} not found for trade confirmation`);
         return res.status(404).json({ error: "Product not found" });
       }
       
-      console.log(`Found product for trade: ${product.title} (ID: ${product.id})`);
+      console.log(`Processing trade for product: ${product.title} (ID: ${product.id})`);
       
-      // Check if product already sold
-      if (product.status === 'sold') {
-        console.error(`Product ${product.id} is already sold`);
-        return res.status(400).json({ error: "This product has already been sold" });
-      }
-      
-      // Get seller and buyer IDs
+      // Identify seller and buyer
       const sellerId = product.sellerId;
+      const buyerId = (userId === sellerId) ? 
+        (message.senderId === sellerId ? message.receiverId : message.senderId) : 
+        userId;
       
-      // For the buyer, it's the user who is not the seller
-      let buyerId;
-      if (message.senderId === sellerId) {
-        buyerId = message.receiverId;
+      console.log(`Trade participants - Seller: ${sellerId}, Buyer: ${buyerId}`);
+      
+      // Update message based on role
+      let update = {};
+      if (role === 'buyer') {
+        update = { tradeConfirmedBuyer: true };
       } else {
-        buyerId = message.senderId;
+        update = { tradeConfirmedSeller: true };
       }
       
-      // Validate user role
-      if (role === 'buyer' && userId !== buyerId) {
-        console.error(`User ${userId} not authorized as buyer for this trade`);
-        return res.status(403).json({ error: "You are not the buyer for this trade" });
-      } else if (role === 'seller' && userId !== sellerId) {
-        console.error(`User ${userId} not authorized as seller for this trade`);
-        return res.status(403).json({ error: "You are not the seller for this trade" });
-      }
-      
-      console.log(`Confirmed trade roles: Seller=${sellerId}, Buyer=${buyerId}`);
-      
-      // Update the message with confirmation based on role
-      const updates = role === 'buyer' 
-        ? { tradeConfirmedBuyer: true } 
-        : { tradeConfirmedSeller: true };
-      
-      console.log(`Updating message ${messageIdNum} with confirmation: ${JSON.stringify(updates)}`);
-      const updatedMessage = await storage.updateMessage(messageIdNum, updates);
-      
+      // Apply update
+      const updatedMessage = await storage.updateMessage(messageId, update);
       if (!updatedMessage) {
-        console.error(`Failed to update message ${messageIdNum} with trade confirmation`);
         return res.status(500).json({ error: "Failed to update message" });
       }
       
-      // Check if both parties have confirmed
-      const isFullyConfirmed = updatedMessage.tradeConfirmedBuyer === true && 
-                               updatedMessage.tradeConfirmedSeller === true;
+      // Check if trade is fully confirmed (both parties accepted)
+      const isFullyConfirmed = updatedMessage.tradeConfirmedBuyer && updatedMessage.tradeConfirmedSeller;
+      console.log(`Trade confirmation status: ${isFullyConfirmed ? 'COMPLETE' : 'PARTIAL'}`);
       
-      console.log(`Trade confirmation status: ${isFullyConfirmed ? 'FULLY CONFIRMED' : 'PENDING OTHER PARTY'}`);
-      
-      // If fully confirmed, finalize the trade
       if (isFullyConfirmed) {
-        console.log(`=== FINALIZING TRADE ===`);
+        console.log(`COMPLETING TRADE - Both parties confirmed`);
         
-        // Extract trade details from message
-        let tradeDetails;
-        let offerItemValue = 0;
-        let offerItemName = "Traded item";
-        
+        // Get trade values
+        let offerValue = 0;
         if (updatedMessage.tradeDetails) {
           try {
-            // Parse trade details if it's a string
-            tradeDetails = typeof updatedMessage.tradeDetails === 'string' 
+            const details = typeof updatedMessage.tradeDetails === 'string' 
               ? JSON.parse(updatedMessage.tradeDetails) 
               : updatedMessage.tradeDetails;
-              
-            // Get offered item value
-            if (tradeDetails.offerItemValue && typeof tradeDetails.offerItemValue === 'number') {
-              offerItemValue = tradeDetails.offerItemValue;
-            }
             
-            // Get offered item name
-            if (tradeDetails.offerItemName) {
-              offerItemName = tradeDetails.offerItemName;
+            if (details.offerItemValue) {
+              offerValue = Number(details.offerItemValue);
             }
           } catch (e) {
-            console.error('Error parsing trade details:', e);
+            console.error("Error parsing trade details:", e);
           }
         }
         
-        // Compare values and use the higher one for fee calculation
-        const productTradeValue = product.tradeValue || 0;
-        const highestValue = Math.max(productTradeValue, offerItemValue);
+        // Use product's trade value (or 0 if not set)
+        const productValue = product.tradeValue || 0;
         
-        console.log(`Trade values comparison: Product=${productTradeValue}, Offered=${offerItemValue}`);
-        console.log(`Using highest value for fee calculation: ${highestValue}`);
+        // Use the higher of the two values for fee calculation
+        const tradeValue = Math.max(productValue, offerValue);
+        console.log(`Using trade value: ${tradeValue} (Product: ${productValue}, Offer: ${offerValue})`);
         
-        // Calculate middleman fee (10% of highest value)
-        const platformFee = Math.round(highestValue * 0.1);
+        // Calculate platform fee (10%)
+        const fee = Math.round(tradeValue * 0.1);
         
-        // Create transaction record
-        const transactionId = `TRADE${Date.now()}`;
-        console.log(`Creating transaction record: ${transactionId}`);
-        
+        // Create a transaction record
         const tradeTransaction = await storage.createTransaction({
-          transactionId,
+          transactionId: `TRADE-${Date.now()}`,
           productId: product.id,
-          buyerId,
-          sellerId,
-          amount: highestValue,
-          platformFee,
+          buyerId: buyerId,
+          sellerId: sellerId,
+          amount: tradeValue,
+          platformFee: fee,
           shipping: 0,
           status: 'completed',
           type: 'trade',
           tradeDetails: {
-            messageId: updatedMessage.id,
-            tradeOffer: updatedMessage.content,
+            messageId: messageId,
             productName: product.title,
-            productValue: productTradeValue,
-            offerItemName: offerItemName,
-            offerItemValue: offerItemValue,
-            highestValue: highestValue,
-            platformFee
+            fee: fee
           },
           timeline: [
             {
-              status: 'created',
-              timestamp: new Date(),
-              note: 'Trade offer accepted by both parties'
-            },
-            {
               status: 'completed',
               timestamp: new Date(),
-              note: `Trade completed successfully. Middleman fee: ${platformFee.toLocaleString('vi-VN')} ₫ (10% of ${highestValue.toLocaleString('vi-VN')} ₫)`
+              note: `Trade completed. Fee: ${fee.toLocaleString('vi-VN')} ₫`
             }
           ]
         });
         
-        console.log(`Trade transaction created successfully: ID=${tradeTransaction.id}`);
+        console.log(`Created transaction record ID: ${tradeTransaction.id}`);
         
-        // Mark the product as sold
-        console.log(`Marking product ${product.id} as sold`);
-        await storage.updateProduct(product.id, { 
-          status: 'sold' 
-        });
-        
-        console.log(`=== TRADE COMPLETED SUCCESSFULLY ===`);
+        // Mark product as sold
+        await storage.updateProduct(product.id, { status: 'sold' });
+        console.log(`Marked product ${product.id} as sold`);
       }
       
-      // Return updated message and confirmation status
+      // Return response
       res.json({
-        message: updatedMessage,
+        success: true,
         isFullyConfirmed,
-        productId: product.id,
-        tradeCompleted: isFullyConfirmed
+        productId: product.id
       });
       
     } catch (error) {
-      console.error("Error confirming trade:", error);
-      res.status(500).json({ error: "Failed to confirm trade" });
+      console.error("Trade confirmation error:", error);
+      res.status(500).json({ error: "Failed to process trade" });
     }
   });
 

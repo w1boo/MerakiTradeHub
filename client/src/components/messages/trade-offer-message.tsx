@@ -37,76 +37,70 @@ export default function TradeOfferMessage({
   // Check if the current user is the sender
   const isSentByCurrentUser = message.senderId === currentUser?.id;
   
-  // Mutation to accept a trade offer
+  // Simple direct mutation to accept a trade offer
   const acceptTradeMutation = useMutation({
     mutationFn: async () => {
-      console.log("Confirming trade for message:", message.id);
+      console.log("Accepting trade offer for message:", message.id);
       
-      // Determine if the current user is buyer or seller
-      // If the current user is the seller of the product, their role is "seller"
-      // Otherwise, they are the "buyer"
-      let role = 'buyer';
-      if (message.productId && tradeDetails?.productId) {
-        // Get the product ID directly from trade details
-        const productId = parseInt(tradeDetails.productId);
-        // Check if the current user is the product seller
-        if (currentUser?.id === tradeDetails.sellerId) {
-          role = 'seller';
-        }
-      }
+      // Simple role detection - if current user is the seller of the product, role is seller
+      // Otherwise role is buyer
+      const isSellerRole = currentUser?.id === tradeDetails?.sellerId;
+      const role = isSellerRole ? 'seller' : 'buyer';
       
-      console.log(`Current user role for trade: ${role}, Message ID: ${message.id}`);
+      console.log(`User ${currentUser?.id} is acting as ${role} for this trade`);
       
-      // Make the API request to confirm the trade
-      const response = await apiRequest(
-        "POST", 
-        "/api/trade/confirm",
-        {
+      // Direct API call with minimal parameters
+      const response = await fetch('/api/trade/confirm', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
           messageId: message.id,
           role: role
-        }
-      );
+        }),
+      });
       
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to confirm trade");
+        throw new Error(errorData.error || "Failed to process trade");
       }
       
-      return response.json();
+      return await response.json();
     },
     onSuccess: (data) => {
+      console.log("Trade acceptance response:", data);
+      
       if (data.isFullyConfirmed) {
+        // Complete trade - both parties accepted
         toast({
-          title: "Trade completed successfully!",
-          description: "The trade has been completed and the product has been marked as sold. A transaction has been created.",
+          title: "Trade Completed!",
+          description: "The trade has been completed successfully. The product is now sold.",
         });
         
-        // Redirect to transactions page after successful trade
+        // Force reload the page to show updated state
         setTimeout(() => {
           window.location.href = '/transactions';
-        }, 1500);
+        }, 1000);
       } else {
+        // Partial trade - waiting for other party
         toast({
-          title: "Trade confirmation pending",
-          description: "Your confirmation has been received. Waiting for the other party to confirm.",
+          title: "Trade Confirmation Sent",
+          description: "Waiting for the other party to confirm the trade.",
         });
-      }
-      
-      // Immediately invalidate all relevant queries to refresh the data
-      queryClient.invalidateQueries({ queryKey: ["/api/conversations"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/transactions"] });
-      
-      // Call the optional callback if provided
-      if (onAcceptTrade) {
-        onAcceptTrade();
+        
+        // Reload the current page to reflect changes
+        setTimeout(() => {
+          window.location.reload();
+        }, 1000);
       }
     },
     onError: (error: any) => {
-      console.error("Trade confirmation error:", error);
+      console.error("Trade acceptance error:", error);
+      
       toast({
-        title: "Failed to confirm trade",
-        description: error.message || "An error occurred. Please try again.",
+        title: "Error Processing Trade",
+        description: error.message || "Failed to process the trade. Please try again.",
         variant: "destructive",
       });
     }
