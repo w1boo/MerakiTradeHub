@@ -89,7 +89,7 @@ export class MemStorage implements IStorage {
   currentDepositId: number;
   currentWithdrawalId: number;
 
-  sessionStore: session.SessionStore;
+  sessionStore: any; // Changed from session.SessionStore to any
 
   constructor() {
     this.users = new Map();
@@ -183,21 +183,31 @@ export class MemStorage implements IStorage {
     );
   }
 
-  async getUserByEmail(email: string): Promise<User | undefined> { // Added
+  async getUserByEmail(email: string | null | undefined): Promise<User | undefined> { // Added
+    if (!email) return undefined; // Early return if email is null or undefined
     return Array.from(this.users.values()).find(user => user.email === email);
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    // Check for duplicate email
-    const existingUser = await this.getUserByEmail(insertUser.email);
-    if (existingUser) {
-      throw new Error("Email already exists");
+    // Check for duplicate email only if provided
+    if (insertUser.email) {
+      const existingUser = await this.getUserByEmail(insertUser.email);
+      if (existingUser) {
+        throw new Error("Email already exists");
+      }
     }
+    
     const id = this.currentUserId++;
     const timestamp = new Date();
     const user: User = { 
-      ...insertUser, 
-      id, 
+      id,
+      username: insertUser.username,
+      password: insertUser.password,
+      firstName: insertUser.firstName || null,
+      lastName: insertUser.lastName || null,
+      email: insertUser.email || null,
+      avatar: insertUser.avatar || null,
+      location: insertUser.location || null,
       balance: 0, 
       escrowBalance: 0,
       isAdmin: insertUser.isAdmin || false,
@@ -220,7 +230,21 @@ export class MemStorage implements IStorage {
   async createProduct(product: InsertProduct): Promise<Product> {
     const id = this.currentProductId++;
     const timestamp = new Date();
-    const newProduct: Product = { ...product, id, createdAt: timestamp };
+    const newProduct: Product = { 
+      id,
+      title: product.title,
+      description: product.description,
+      price: product.price || null,
+      images: product.images,
+      categoryId: product.categoryId || null,
+      sellerId: product.sellerId,
+      location: product.location || null,
+      allowTrade: product.allowTrade || false,
+      allowBuy: product.allowBuy || false,
+      tradeValue: product.tradeValue || null,
+      status: product.status || 'active',
+      createdAt: timestamp
+    };
     this.products.set(id, newProduct);
     return newProduct;
   }
@@ -285,8 +309,18 @@ export class MemStorage implements IStorage {
     const id = this.currentTransactionId++;
     const timestamp = new Date();
     const newTransaction: Transaction = { 
-      ...transaction, 
-      id, 
+      id,
+      transactionId: transaction.transactionId,
+      productId: transaction.productId,
+      buyerId: transaction.buyerId,
+      sellerId: transaction.sellerId,
+      amount: transaction.amount,
+      platformFee: transaction.platformFee,
+      shipping: transaction.shipping || null,
+      status: transaction.status,
+      type: transaction.type,
+      tradeDetails: transaction.tradeDetails || null,
+      timeline: transaction.timeline || [],
       createdAt: timestamp,
       updatedAt: timestamp
     };
