@@ -12,15 +12,19 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  FormDescription
 } from "@/components/ui/form";
 import { DirectTradeButton } from "./direct-trade-button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Upload, X, Image as ImageIcon } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 // The form schema
 const formSchema = z.object({
   offerItemName: z.string().min(1, "Item name is required"),
   offerItemDescription: z.string().min(1, "Item description is required"),
   offerValue: z.number().min(1000, "Value must be at least 1,000 VND"),
+  offerItemImage: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -35,6 +39,8 @@ interface TradeOfferFormProps {
 export function TradeOfferForm({ productId, sellerId, productTitle, onSuccess }: TradeOfferFormProps) {
   const [step, setStep] = useState<"form" | "confirm">("form");
   const [formData, setFormData] = useState<FormValues | null>(null);
+  const [uploadedImage, setUploadedImage] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
   
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -42,8 +48,48 @@ export function TradeOfferForm({ productId, sellerId, productTitle, onSuccess }:
       offerItemName: "",
       offerItemDescription: "",
       offerValue: 10000,
+      offerItemImage: "",
     },
   });
+  
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    setIsUploading(true);
+    
+    try {
+      // Create a FormData object to send the file
+      const formData = new FormData();
+      formData.append("image", file);
+      
+      // Send the image to the server
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        throw new Error("Failed to upload image");
+      }
+      
+      const data = await response.json();
+      const imageUrl = data.url;
+      
+      // Set the uploaded image URL
+      setUploadedImage(imageUrl);
+      form.setValue("offerItemImage", imageUrl);
+    } catch (error) {
+      console.error("Error uploading image:", error);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+  
+  const removeImage = () => {
+    setUploadedImage(null);
+    form.setValue("offerItemImage", "");
+  };
   
   const onSubmit = (data: FormValues) => {
     setFormData(data);
@@ -61,6 +107,15 @@ export function TradeOfferForm({ productId, sellerId, productTitle, onSuccess }:
             <div className="space-y-2">
               <h3 className="text-sm font-medium">Your Item</h3>
               <div className="bg-muted p-3 rounded-md">
+                {formData.offerItemImage && (
+                  <div className="mb-2">
+                    <img 
+                      src={formData.offerItemImage} 
+                      alt={formData.offerItemName}
+                      className="w-full h-24 object-cover rounded-md mb-2"
+                    />
+                  </div>
+                )}
                 <p className="font-medium">{formData.offerItemName}</p>
                 <p className="text-sm text-muted-foreground">{formData.offerItemDescription}</p>
                 <p className="text-sm font-medium text-primary mt-1">
@@ -156,6 +211,68 @@ export function TradeOfferForm({ productId, sellerId, productTitle, onSuccess }:
                       value={field.value}
                     />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            <FormField
+              control={form.control}
+              name="offerItemImage"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Item Image</FormLabel>
+                  <FormControl>
+                    <div className="space-y-2">
+                      {!uploadedImage ? (
+                        <div className="flex flex-col items-center justify-center border-2 border-dashed border-muted-foreground/25 rounded-md p-4 hover:border-primary/50 cursor-pointer transition-colors">
+                          <input 
+                            type="file" 
+                            id="image-upload" 
+                            accept="image/*" 
+                            className="hidden" 
+                            onChange={handleImageUpload}
+                            disabled={isUploading}
+                          />
+                          <label 
+                            htmlFor="image-upload" 
+                            className="flex flex-col items-center justify-center w-full h-full cursor-pointer"
+                          >
+                            {isUploading ? (
+                              <div className="flex flex-col items-center justify-center py-4">
+                                <Loader2 className="h-8 w-8 animate-spin text-primary mb-2" />
+                                <p className="text-sm text-muted-foreground">Uploading image...</p>
+                              </div>
+                            ) : (
+                              <>
+                                <Upload className="h-8 w-8 text-muted-foreground mb-2" />
+                                <p className="text-sm text-muted-foreground">Click to upload an image of your item</p>
+                                <p className="text-xs text-muted-foreground/70 mt-1">PNG, JPG or WEBP up to 5MB</p>
+                              </>
+                            )}
+                          </label>
+                        </div>
+                      ) : (
+                        <div className="relative aspect-video w-full border rounded-md overflow-hidden">
+                          <img 
+                            src={uploadedImage} 
+                            alt="Item preview" 
+                            className="object-cover w-full h-full"
+                          />
+                          <button
+                            type="button"
+                            onClick={removeImage}
+                            className="absolute top-2 right-2 bg-black/60 p-1 rounded-full text-white hover:bg-black/80 transition-colors"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </FormControl>
+                  <FormDescription>
+                    Adding an image helps the seller better understand your item.
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}

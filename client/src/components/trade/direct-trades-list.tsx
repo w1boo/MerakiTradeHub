@@ -25,6 +25,7 @@ interface DirectTradeOffer {
   status: string;
   offerItemName: string;
   offerItemDescription: string;
+  offerItemImage?: string;
   offerValue: number;
   createdAt: string;
   escrowAmount?: number;
@@ -214,8 +215,21 @@ export function DirectTradesList({ type, userId }: DirectTradesListProps) {
               <div>
                 <h3 className="font-medium mb-1">Offered Item</h3>
                 <div className="bg-muted p-3 rounded-md">
-                  <p className="font-medium">{offer.offerItemName}</p>
-                  <p className="text-sm text-muted-foreground">{offer.offerItemDescription}</p>
+                  <div className="flex mb-2">
+                    {offer.offerItemImage ? (
+                      <div className="mr-3 flex-shrink-0">
+                        <img 
+                          src={offer.offerItemImage} 
+                          alt={offer.offerItemName} 
+                          className="h-12 w-12 object-cover rounded-md"
+                        />
+                      </div>
+                    ) : null}
+                    <div>
+                      <p className="font-medium">{offer.offerItemName}</p>
+                      <p className="text-sm text-muted-foreground">{offer.offerItemDescription}</p>
+                    </div>
+                  </div>
                   <p className="text-sm font-medium mt-2">{offer.offerValue.toLocaleString('vi-VN')} ₫</p>
                 </div>
               </div>
