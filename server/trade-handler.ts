@@ -268,7 +268,10 @@ export async function completeDirectTrade(req: Request, res: Response) {
     }
     
     // Get the trade details and update the confirmation status
-    const tradeDetails = transaction.tradeDetails ? { ...transaction.tradeDetails } : {};
+    const tradeDetails = transaction.tradeDetails ? { ...transaction.tradeDetails } : { 
+      buyerConfirmed: false, 
+      sellerConfirmed: false 
+    };
     
     if (userId === transaction.buyerId) {
       tradeDetails.buyerConfirmed = true;

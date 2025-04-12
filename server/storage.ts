@@ -1,9 +1,10 @@
-import { users, products, transactions, messages, conversations, deposits, withdrawals, productCategories } from "@shared/schema";
+import { users, products, transactions, messages, conversations, deposits, withdrawals, productCategories, directTradeOffers } from "@shared/schema";
 import type { 
   User, InsertUser, Product, InsertProduct, Transaction, InsertTransaction, 
   Message, InsertMessage, Conversation, InsertConversation,
   Deposit, InsertDeposit, Withdrawal, InsertWithdrawal,
-  ProductCategory, InsertProductCategory
+  ProductCategory, InsertProductCategory,
+  DirectTradeOffer, InsertDirectTradeOffer
 } from "@shared/schema";
 import session from "express-session";
 import createMemoryStore from "memorystore";
@@ -563,6 +564,7 @@ export class MemStorage implements IStorage {
   async createDirectTradeOffer(offer: InsertDirectTradeOffer): Promise<DirectTradeOffer> {
     const id = this.currentDirectTradeOfferId++;
     const timestamp = new Date();
+    
     const newOffer: DirectTradeOffer = {
       id,
       buyerId: offer.buyerId,
@@ -574,50 +576,55 @@ export class MemStorage implements IStorage {
       offeredItemImages: offer.offeredItemImages,
       notes: offer.notes || null,
       status: offer.status || 'pending',
-      buyerConfirmed: false,
-      sellerConfirmed: false,
-      escrowAmount: offer.escrowAmount,
-      createdAt: timestamp,
+      escrowAmount: offer.escrowAmount || null,
+      createdAt: offer.createdAt || timestamp,
       updatedAt: timestamp
     };
+    
     this.directTradeOffers.set(id, newOffer);
     return newOffer;
   }
-
+  
   async getDirectTradeOffer(id: number): Promise<DirectTradeOffer | undefined> {
     return this.directTradeOffers.get(id);
   }
-
+  
   async getUserDirectTradeOffers(userId: number): Promise<DirectTradeOffer[]> {
     return Array.from(this.directTradeOffers.values())
       .filter(offer => offer.buyerId === userId || offer.sellerId === userId)
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
   }
-
+  
   async getPendingDirectTradeOffersForUser(userId: number): Promise<DirectTradeOffer[]> {
     return Array.from(this.directTradeOffers.values())
-      .filter(offer => (offer.sellerId === userId) && offer.status === 'pending')
+      .filter(offer => 
+        (offer.buyerId === userId || offer.sellerId === userId) && 
+        offer.status === 'pending'
+      )
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
   }
-
+  
   async getProductDirectTradeOffers(productId: number): Promise<DirectTradeOffer[]> {
     return Array.from(this.directTradeOffers.values())
       .filter(offer => offer.productId === productId)
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
   }
-
+  
   async updateDirectTradeOffer(id: number, updates: Partial<DirectTradeOffer>): Promise<DirectTradeOffer | undefined> {
-    const offer = await this.getDirectTradeOffer(id);
+    const offer = this.directTradeOffers.get(id);
     if (!offer) return undefined;
-
-    const updatedOffer = {
-      ...offer,
+    
+    const updatedOffer = { 
+      ...offer, 
       ...updates,
       updatedAt: new Date()
     };
+    
     this.directTradeOffers.set(id, updatedOffer);
     return updatedOffer;
   }
+
+
 }
 
 export const storage = new MemStorage();
