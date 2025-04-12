@@ -564,14 +564,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Direct API to accept a trade and delete the offers when seller accepts
-  app.post("/api/trade/confirm", ensureAuthenticated, async (req, res) => {
+  // Simple direct trade acceptance endpoint
+  app.post("/api/trade/simple-accept", ensureAuthenticated, async (req, res) => {
     try {
       const userId = req.user!.id;
-      const { messageId, role } = req.body;
+      const { messageId } = req.body;
       
-      console.log(`### TRADE ACCEPTANCE REQUEST ###`);
-      console.log(`User ${userId} as ${role} for message ${messageId}`);
+      console.log(`=== DIRECT TRADE ACCEPTANCE ===`);
+      console.log(`User ${userId} accepting trade for message ${messageId}`);
       
       // Get the message
       const message = await storage.getMessage(messageId);
@@ -590,24 +590,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Product not found" });
       }
       
-      // Check if the user is the seller of the product
+      console.log(`Found product ${product.id}: ${product.title}`);
+      
+      // Check if user is seller
       const isSeller = userId === product.sellerId;
+      console.log(`User is ${isSeller ? 'SELLER' : 'BUYER'}`);
       
-      console.log(`User ${userId} is ${isSeller ? 'SELLER' : 'BUYER'} for product ${product.id}`);
-      
-      // If this is the seller accepting, delete all trade offers for this product
       if (isSeller) {
-        console.log(`SELLER ACCEPTED: Deleting all trade offers for product ${product.id}`);
+        // SELLER ACCEPTING - complete the trade immediately
         
-        // Mark the product as sold
+        // Mark product as sold
         await storage.updateProduct(product.id, { status: 'sold' });
+        console.log(`Marked product ${product.id} as sold`);
         
-        // Create a transaction record
+        // Use product trade value for fee calculation
         const tradeValue = product.tradeValue || 0;
         const fee = Math.round(tradeValue * 0.1); // 10% fee
         
         // Create transaction
-        await storage.createTransaction({
+        const transaction = await storage.createTransaction({
           transactionId: `TRADE-${Date.now()}`,
           productId: product.id,
           buyerId: message.senderId === product.sellerId ? message.receiverId : message.senderId,
@@ -618,6 +619,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           status: 'completed',
           type: 'trade',
           tradeDetails: {
+            messageId: messageId,
             productName: product.title,
             fee: fee
           },
@@ -630,24 +632,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ]
         });
         
-        // Return success response with redirect info
-        return res.json({
-          success: true,
-          tradeDone: true,
-          message: "Trade accepted and completed. All offers have been deleted."
-        });
-      } else {
-        // Buyer accepting - just update the message
-        await storage.updateMessage(messageId, { tradeConfirmedBuyer: true });
+        console.log(`Created transaction ${transaction.id}`);
         
         return res.json({
           success: true,
-          tradeDone: false,
-          message: "Trade offer accepted. Waiting for seller to confirm."
+          message: "Trade completed successfully. Product is now sold.",
+          tradeDone: true
+        });
+      } else {
+        // BUYER ACCEPTING - just mark the message
+        const updatedMessage = await storage.updateMessage(messageId, {
+          tradeConfirmedBuyer: true
+        });
+        
+        console.log(`Updated message ${messageId} with buyer confirmation`);
+        
+        return res.json({
+          success: true,
+          message: "Your trade acceptance has been recorded. Waiting for seller to accept.",
+          tradeDone: false
         });
       }
+      
     } catch (error) {
-      console.error("Trade acceptance error:", error);
+      console.error("Error accepting trade:", error);
       res.status(500).json({ error: "Failed to process trade acceptance" });
     }
   });

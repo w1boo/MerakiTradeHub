@@ -37,69 +37,10 @@ export default function TradeOfferMessage({
   // Check if the current user is the sender
   const isSentByCurrentUser = message.senderId === currentUser?.id;
   
-  // Very simple direct mutation to accept a trade offer
-  const acceptTradeMutation = useMutation({
-    mutationFn: async () => {
-      console.log("Accepting trade offer for message ID:", message.id);
-      
-      // Check if current user is the seller of the product
-      const isSeller = currentUser?.id === tradeDetails?.sellerId;
-      
-      // Simple API call - we don't need most of the parameters
-      const response = await fetch('/api/trade/confirm', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          messageId: message.id,
-          role: isSeller ? 'seller' : 'buyer'
-        }),
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to process trade");
-      }
-      
-      return await response.json();
-    },
-    onSuccess: (data) => {
-      console.log("Accept trade response:", data);
-      
-      // If this was the seller accepting, it's done - redirect to transactions
-      if (data.tradeDone) {
-        toast({
-          title: "Trade Complete!",
-          description: "You have accepted this trade and the product is now sold.",
-        });
-        
-        // Force redirect to transactions page after brief delay
-        setTimeout(() => {
-          window.location.href = '/transactions';
-        }, 1000);
-      } else {
-        // This was the buyer accepting - just show message and refresh
-        toast({
-          title: "Trade Offer Accepted",
-          description: "Waiting for the seller to accept your offer.",
-        });
-        
-        // Refresh the page to show updated state
-        setTimeout(() => {
-          window.location.reload();
-        }, 1000);
-      }
-    },
-    onError: (error: any) => {
-      console.error("Trade accept error:", error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to accept trade. Please try again.",
-        variant: "destructive",
-      });
-    }
-  });
+  const handleAcceptTrade = () => {
+    // Redirect to the accept-trade-handler page with messageId as a parameter
+    window.location.href = `/accept-trade-handler?messageId=${message.id}`;
+  };
   
   if (!tradeDetails) {
     return (
@@ -240,20 +181,12 @@ export default function TradeOfferMessage({
             <Button
               variant="default"
               size="sm"
-              onClick={() => acceptTradeMutation.mutate()}
-              disabled={acceptTradeMutation.isPending}
+              onClick={handleAcceptTrade}
             >
-              {acceptTradeMutation.isPending ? (
-                <>
-                  <Icon icon="ri-loader-4-line animate-spin mr-1" />
-                  Processing...
-                </>
-              ) : (
-                <>
-                  <Icon icon="ri-check-line mr-1" />
-                  Accept Trade
-                </>
-              )}
+              <>
+                <Icon icon="ri-check-line mr-1" />
+                Accept Trade
+              </>
             </Button>
           )}
           
