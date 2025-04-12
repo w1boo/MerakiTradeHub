@@ -141,6 +141,29 @@ export function TransactionDetail({
               </p>
             </div>
           </div>
+          
+          {/* Show trade offer details if this was a trade */}
+          {transaction.type === "trade" && transaction.tradeDetails && (
+            <div className="mt-4 border-t border-neutral-200 pt-4">
+              <h4 className="font-medium text-base mb-2">Trade Offer</h4>
+              <div className="flex items-start">
+                {transaction.tradeDetails.offerItemImage && (
+                  <img 
+                    src={transaction.tradeDetails.offerItemImage}
+                    alt={transaction.tradeDetails.offerItemName}
+                    className="w-15 h-15 rounded-md object-cover mr-4" 
+                  />
+                )}
+                <div>
+                  <h5 className="font-medium">{transaction.tradeDetails.offerItemName}</h5>
+                  <p className="text-sm text-neutral-600">{transaction.tradeDetails.offerItemDescription}</p>
+                  <p className="text-sm font-medium mt-1">
+                    {transaction.tradeDetails.offerValue?.toLocaleString('vi-VN')} ₫
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="border-t border-b border-neutral-200 py-4 mb-6">
