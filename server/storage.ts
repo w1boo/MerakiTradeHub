@@ -112,6 +112,30 @@ export class MemStorage implements IStorage {
 
     // Initialize the store with some categories
     this.seedCategories();
+    
+    // Create admin user
+    this.seedAdminUser();
+  }
+  
+  // Create an admin user for testing
+  private seedAdminUser() {
+    const adminUser: User = {
+      id: this.currentUserId++,
+      username: 'admin',
+      password: 'd9e2fe86bfd601f61cc17ad668766fdd7043d9e11c8e696372dc39d13c8e2cf6.bc7173ecfc43a24fb76c2087ad8e2c34', // password: 'admin123'
+      firstName: 'Admin',
+      lastName: 'User',
+      email: 'admin@example.com',
+      avatar: null,
+      location: null,
+      balance: 1000, // Give admin some balance to work with
+      escrowBalance: 0,
+      isAdmin: true,
+      createdAt: new Date()
+    };
+    
+    this.users.set(adminUser.id, adminUser);
+    console.log('Admin user created with ID:', adminUser.id);
   }
 
   // Initialize basic categories
