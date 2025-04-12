@@ -286,14 +286,8 @@ export default function ProfilePage() {
                 <TabsTrigger value="profile" className="flex-1 rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary">
                   Profile
                 </TabsTrigger>
-                <TabsTrigger value="listings" className="flex-1 rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary">
-                  My Listings
-                </TabsTrigger>
                 <TabsTrigger value="finances" className="flex-1 rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary">
                   Financial History
-                </TabsTrigger>
-                <TabsTrigger value="settings" className="flex-1 rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary">
-                  Settings
                 </TabsTrigger>
               </TabsList>
 
