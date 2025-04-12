@@ -330,7 +330,7 @@ export default function ListingFormPage() {
                         <FormItem>
                           <FormLabel>Category</FormLabel>
                           <Select
-                            onValueChange={field.onChange}
+                            onValueChange={(value) => field.onChange(parseInt(value, 10))}
                             defaultValue={field.value?.toString()}
                             value={field.value?.toString()}
                           >
