@@ -15,10 +15,17 @@ declare global {
 
 const scryptAsync = promisify(scrypt);
 
-async function hashPassword(password: string) {
+export async function hashPassword(password: string) {
   const salt = randomBytes(16).toString("hex");
   const buf = (await scryptAsync(password, salt, 64)) as Buffer;
   return `${buf.toString("hex")}.${salt}`;
+}
+
+// This function can be used to create a properly hashed admin password
+export async function createAdminPassword() {
+  const adminPassword = await hashPassword("admin123");
+  console.log("Generated admin password hash:", adminPassword);
+  return adminPassword;
 }
 
 async function comparePasswords(supplied: string, stored: string) {

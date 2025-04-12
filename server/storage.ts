@@ -7,6 +7,7 @@ import type {
 } from "@shared/schema";
 import session from "express-session";
 import createMemoryStore from "memorystore";
+import { hashPassword } from "./auth";
 
 const MemoryStore = createMemoryStore(session);
 
@@ -113,33 +114,40 @@ export class MemStorage implements IStorage {
     // Initialize the store with some categories
     this.seedCategories();
     
-    // Create admin user
-    this.seedAdminUser();
+    // Create admin user - this is async but we can't make constructor async
+    // So we handle it by calling it and logging any errors
+    this.seedAdminUser().catch(err => {
+      console.error('Failed to seed admin user:', err);
+    });
   }
   
   // Create an admin user for testing
-  private seedAdminUser() {
-    // Create a proper password hash that works with our comparePasswords function
-    // Format: [hash].[salt]
-    // Using a known hash and salt for 'admin123'
-    const adminUser: User = {
-      id: this.currentUserId++,
-      username: 'admin',
-      // Simple password hash format that works with our system for password: 'admin123'
-      password: '5fa3149ed4a0bb6cc5db9e45b499893e4d299290b9ab434af35d3aa0e75b46e8a66bfc4879f233f67391dfdea61c49a5a3e20e4e136e528e1939d0f489730b0d.6d21a9ffa40e10d7e50dac399b6d082c',
-      firstName: 'Admin',
-      lastName: 'User',
-      email: 'admin@example.com',
-      avatar: null,
-      location: null,
-      balance: 1000, // Give admin some balance to work with
-      escrowBalance: 0,
-      isAdmin: true,
-      createdAt: new Date()
-    };
-    
-    this.users.set(adminUser.id, adminUser);
-    console.log('Admin user created with ID:', adminUser.id);
+  private async seedAdminUser() {
+    try {
+      // Generate a fresh password hash for 'admin123'
+      const adminPasswordHash = await hashPassword('admin123');
+      
+      const adminUser: User = {
+        id: this.currentUserId++,
+        username: 'admin',
+        password: adminPasswordHash,
+        firstName: 'Admin',
+        lastName: 'User',
+        email: 'admin@example.com',
+        avatar: null,
+        location: null,
+        balance: 1000, // Give admin some balance to work with
+        escrowBalance: 0,
+        isAdmin: true,
+        createdAt: new Date()
+      };
+      
+      this.users.set(adminUser.id, adminUser);
+      console.log('Admin user created with ID:', adminUser.id);
+      console.log('Admin password hash:', adminPasswordHash);
+    } catch (error) {
+      console.error('Error creating admin user:', error);
+    }
   }
 
   // Initialize basic categories
