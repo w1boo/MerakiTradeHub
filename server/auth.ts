@@ -35,8 +35,8 @@ export function setupAuth(app: Express) {
     saveUninitialized: false,
     store: storage.sessionStore,
     cookie: {
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
       secure: process.env.NODE_ENV === 'production',
-      maxAge: 24 * 60 * 60 * 1000 // 24 hours
     }
   };
 
@@ -47,27 +47,19 @@ export function setupAuth(app: Express) {
 
   passport.use(
     new LocalStrategy(async (username, password, done) => {
-      try {
-        const user = await storage.getUserByUsername(username);
-        if (!user || !(await comparePasswords(password, user.password))) {
-          return done(null, false);
-        } else {
-          return done(null, user);
-        }
-      } catch (error) {
-        return done(error);
+      const user = await storage.getUserByUsername(username);
+      if (!user || !(await comparePasswords(password, user.password))) {
+        return done(null, false);
+      } else {
+        return done(null, user);
       }
     }),
   );
 
   passport.serializeUser((user, done) => done(null, user.id));
   passport.deserializeUser(async (id: number, done) => {
-    try {
-      const user = await storage.getUser(id);
-      done(null, user);
-    } catch (error) {
-      done(error);
-    }
+    const user = await storage.getUser(id);
+    done(null, user);
   });
 
   app.post("/api/register", async (req, res, next) => {
@@ -77,22 +69,14 @@ export function setupAuth(app: Express) {
         return res.status(400).send("Username already exists");
       }
 
-      const existingEmail = await storage.getUserByEmail(req.body.email);
-      if (existingEmail) {
-        return res.status(400).send("Email already exists");
-      }
-
       const user = await storage.createUser({
         ...req.body,
         password: await hashPassword(req.body.password),
       });
 
-      const safeUser = { ...user };
-      delete safeUser.password;
-
       req.login(user, (err) => {
         if (err) return next(err);
-        res.status(201).json(safeUser);
+        res.status(201).json(user);
       });
     } catch (error) {
       next(error);
@@ -100,9 +84,7 @@ export function setupAuth(app: Express) {
   });
 
   app.post("/api/login", passport.authenticate("local"), (req, res) => {
-    const safeUser = { ...req.user };
-    delete safeUser.password;
-    res.status(200).json(safeUser);
+    res.status(200).json(req.user);
   });
 
   app.post("/api/logout", (req, res, next) => {
@@ -114,8 +96,6 @@ export function setupAuth(app: Express) {
 
   app.get("/api/user", (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
-    const safeUser = { ...req.user };
-    delete safeUser.password;
-    res.json(safeUser);
+    res.json(req.user);
   });
 }

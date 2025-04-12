@@ -1,103 +1,188 @@
-import { pgTable, text, serial, integer, boolean, timestamp, real, doublePrecision, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, doublePrecision, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-// Users table
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
-  email: text("email").notNull().unique(),
-  fullName: text("full_name").notNull(),
-  profileImage: text("profile_image"),
-  balance: real("balance").default(0).notNull(),
+  firstName: text("first_name"),
+  lastName: text("last_name"),
+  email: text("email"),
+  avatar: text("avatar"),
+  location: text("location"),
+  balance: doublePrecision("balance").default(0).notNull(),
+  escrowBalance: doublePrecision("escrow_balance").default(0).notNull(),
   isAdmin: boolean("is_admin").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-// Products table
+export const productCategories = pgTable("product_categories", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  icon: text("icon").notNull(),
+  color: text("color").notNull(),
+});
+
 export const products = pgTable("products", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull(),
   title: text("title").notNull(),
   description: text("description").notNull(),
-  category: text("category").notNull(),
-  price: real("price"),
-  allowTrade: boolean("allow_trade").default(true).notNull(),
-  status: text("status").default("available").notNull(), // available, sold, reserved
+  price: doublePrecision("price"),
   images: text("images").array().notNull(),
+  categoryId: integer("category_id").references(() => productCategories.id),
+  sellerId: integer("seller_id").references(() => users.id).notNull(),
+  location: text("location"),
+  allowTrade: boolean("allow_trade").default(true).notNull(),
+  allowBuy: boolean("allow_buy").default(true).notNull(),
+  tradeValue: doublePrecision("trade_value"),
+  status: text("status").notNull().default("active"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-// Messages table
-export const messages = pgTable("messages", {
-  id: serial("id").primaryKey(),
-  senderId: integer("sender_id").notNull(),
-  receiverId: integer("receiver_id").notNull(),
-  content: text("content").notNull(),
-  read: boolean("read").default(false).notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
-
-// Conversations table
-export const conversations = pgTable("conversations", {
-  id: serial("id").primaryKey(),
-  user1Id: integer("user1_id").notNull(),
-  user2Id: integer("user2_id").notNull(),
-  lastMessageAt: timestamp("last_message_at").defaultNow().notNull(),
-});
-
-// Transactions table
 export const transactions = pgTable("transactions", {
   id: serial("id").primaryKey(),
-  buyerId: integer("buyer_id").notNull(),
-  sellerId: integer("seller_id").notNull(),
-  productId: integer("product_id").notNull(),
-  amount: real("amount").notNull(),
-  fee: real("fee").notNull(),
-  status: text("status").default("pending").notNull(), // pending, completed, cancelled, disputed
-  escrowAmount: real("escrow_amount").notNull(),
-  escrowReleased: boolean("escrow_released").default(false).notNull(),
+  transactionId: text("transaction_id").notNull().unique(),
+  productId: integer("product_id").references(() => products.id).notNull(),
+  buyerId: integer("buyer_id").references(() => users.id).notNull(),
+  sellerId: integer("seller_id").references(() => users.id).notNull(),
+  amount: doublePrecision("amount").notNull(),
+  platformFee: doublePrecision("platform_fee").notNull(),
+  shipping: doublePrecision("shipping").default(0),
+  status: text("status").notNull(),
+  type: text("type").notNull(), // 'purchase' or 'trade'
+  tradeDetails: jsonb("trade_details"),
+  timeline: jsonb("timeline").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-// Insert schemas with validation
-export const insertUserSchema = createInsertSchema(users, {
-  email: z.string().email(),
-  username: z.string().min(3).max(50),
-  password: z.string().min(6),
-  fullName: z.string().min(2),
-}).omit({ id: true, createdAt: true, isAdmin: true, balance: true });
+export const messages = pgTable("messages", {
+  id: serial("id").primaryKey(),
+  senderId: integer("sender_id").references(() => users.id).notNull(),
+  receiverId: integer("receiver_id").references(() => users.id).notNull(),
+  content: text("content").notNull(),
+  images: text("images").array(),
+  isRead: boolean("is_read").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
 
-export const insertProductSchema = createInsertSchema(products, {
-  title: z.string().min(3).max(100),
-  description: z.string().min(10),
-  price: z.number().min(0).optional(),
-  images: z.array(z.string()).min(1),
-  category: z.string(),
-}).omit({ id: true, createdAt: true, status: true, userId: true });
+export const conversations = pgTable("conversations", {
+  id: serial("id").primaryKey(),
+  user1Id: integer("user1_id").references(() => users.id).notNull(),
+  user2Id: integer("user2_id").references(() => users.id).notNull(),
+  lastMessageId: integer("last_message_id").references(() => messages.id),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
 
-export const insertMessageSchema = createInsertSchema(messages, {
-  content: z.string().min(1),
-}).omit({ id: true, createdAt: true, read: true });
+export const deposits = pgTable("deposits", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  amount: doublePrecision("amount").notNull(),
+  method: text("method").notNull(),
+  status: text("status").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
 
-export const insertTransactionSchema = createInsertSchema(transactions, {
-  amount: z.number().min(0),
-  productId: z.number(),
-}).omit({ id: true, createdAt: true, updatedAt: true, status: true, fee: true, escrowReleased: true, escrowAmount: true, buyerId: true, sellerId: true });
+export const withdrawals = pgTable("withdrawals", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  amount: doublePrecision("amount").notNull(),
+  method: text("method").notNull(),
+  status: text("status").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
 
-// Types for schema
+// Insert schemas
+export const insertUserSchema = createInsertSchema(users).pick({
+  username: true,
+  password: true,
+  firstName: true,
+  lastName: true,
+  email: true,
+  avatar: true,
+  location: true,
+  isAdmin: true,
+});
+
+export const insertProductCategorySchema = createInsertSchema(productCategories);
+
+export const insertProductSchema = createInsertSchema(products).pick({
+  title: true,
+  description: true,
+  price: true,
+  images: true,
+  categoryId: true,
+  sellerId: true,
+  location: true,
+  allowTrade: true,
+  allowBuy: true,
+  tradeValue: true,
+  status: true,
+});
+
+export const insertTransactionSchema = createInsertSchema(transactions).pick({
+  transactionId: true,
+  productId: true,
+  buyerId: true,
+  sellerId: true,
+  amount: true,
+  platformFee: true,
+  shipping: true,
+  status: true,
+  type: true,
+  tradeDetails: true,
+  timeline: true,
+});
+
+export const insertMessageSchema = createInsertSchema(messages).pick({
+  senderId: true,
+  receiverId: true,
+  content: true,
+  images: true,
+});
+
+export const insertConversationSchema = createInsertSchema(conversations).pick({
+  user1Id: true,
+  user2Id: true,
+  lastMessageId: true,
+});
+
+export const insertDepositSchema = createInsertSchema(deposits).pick({
+  userId: true,
+  amount: true,
+  method: true,
+  status: true,
+});
+
+export const insertWithdrawalSchema = createInsertSchema(withdrawals).pick({
+  userId: true,
+  amount: true,
+  method: true,
+  status: true,
+});
+
+// Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 
+export type ProductCategory = typeof productCategories.$inferSelect;
+export type InsertProductCategory = z.infer<typeof insertProductCategorySchema>;
+
 export type Product = typeof products.$inferSelect;
 export type InsertProduct = z.infer<typeof insertProductSchema>;
+
+export type Transaction = typeof transactions.$inferSelect;
+export type InsertTransaction = z.infer<typeof insertTransactionSchema>;
 
 export type Message = typeof messages.$inferSelect;
 export type InsertMessage = z.infer<typeof insertMessageSchema>;
 
 export type Conversation = typeof conversations.$inferSelect;
+export type InsertConversation = z.infer<typeof insertConversationSchema>;
 
-export type Transaction = typeof transactions.$inferSelect;
-export type InsertTransaction = z.infer<typeof insertTransactionSchema>;
+export type Deposit = typeof deposits.$inferSelect;
+export type InsertDeposit = z.infer<typeof insertDepositSchema>;
+
+export type Withdrawal = typeof withdrawals.$inferSelect;
+export type InsertWithdrawal = z.infer<typeof insertWithdrawalSchema>;
