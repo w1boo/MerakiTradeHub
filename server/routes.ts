@@ -65,13 +65,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/products/category/:id", async (req, res) => {
     try {
       const categoryId = parseInt(req.params.id);
-
-      const existingProducts = await storage.getProductsByCategory(categoryId);
-
-      // Get products after potential test item creation
+      
+      // Get products and filter out sold ones
       const products = await storage.getProductsByCategory(categoryId);
-      console.log(`Returning ${products.length} products for category ${categoryId}`);
-      res.json(products);
+      const availableProducts = products.filter(product => product.status !== 'sold');
+      console.log(`Returning ${availableProducts.length} products for category ${categoryId}`);
+      res.json(availableProducts);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch products by category" });
     }
