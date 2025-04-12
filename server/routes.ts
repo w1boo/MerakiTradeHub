@@ -328,7 +328,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const otherUserId = conversation.user1Id === req.user!.id ? conversation.user2Id : conversation.user1Id;
         const otherUser = await storage.getUser(otherUserId);
 
-        // We don't need to get the last message, as it's loaded through other means
+        // Get the last message for this conversation
+        let lastMessage = null;
+        if (conversation.lastMessageId) {
+          // Find and get the message by id
+          const messages = await storage.getMessages(conversation.id);
+          lastMessage = messages.find(msg => msg.id === conversation.lastMessageId) || null;
+        }
 
         // Count unread messages
         const messages = await storage.getMessages(conversation.id);
@@ -339,12 +345,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return {
           ...conversation,
           otherUser,
+          lastMessage,
           unreadCount
         };
       }));
 
       res.json(enhancedConversations);
     } catch (error) {
+      console.error("Error fetching conversations:", error);
       res.status(500).json({ error: "Failed to fetch conversations" });
     }
   });

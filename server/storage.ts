@@ -342,10 +342,14 @@ export class MemStorage implements IStorage {
     const conversation = await this.getConversation(conversationId);
     if (!conversation) return [];
 
+    // Get all messages between these two users
+    const user1Id = conversation.user1Id;
+    const user2Id = conversation.user2Id;
+    
     return Array.from(this.messages.values())
       .filter(message => 
-        (message.senderId === conversation.user1Id && message.receiverId === conversation.user2Id) ||
-        (message.senderId === conversation.user2Id && message.receiverId === conversation.user1Id)
+        (message.senderId === user1Id && message.receiverId === user2Id) ||
+        (message.senderId === user2Id && message.receiverId === user1Id)
       )
       .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
   }
