@@ -55,12 +55,12 @@ export default function ProductCard({ product }: ProductCardProps) {
           <div>
             {product.price && (
               <>
-                <span className="text-black font-semibold">${product.price.toFixed(2)}</span>
+                <span className="text-black font-semibold">{product.price.toLocaleString('vi-VN')} ₫</span>
                 {product.allowTrade && <span className="text-xs text-neutral-600 ml-1">or trade</span>}
               </>
             )}
             {!product.price && product.tradeValue && (
-              <span className="text-accent font-semibold">Trade Value: ${product.tradeValue.toFixed(2)}</span>
+              <span className="text-accent font-semibold">Trade Value: {product.tradeValue.toLocaleString('vi-VN')} ₫</span>
             )}
           </div>
           
