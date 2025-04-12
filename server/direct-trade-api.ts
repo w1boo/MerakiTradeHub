@@ -152,9 +152,27 @@ export async function acceptDirectTradeOffer(req: Request, res: Response) {
       });
     }
     
+    // Get the buyer
+    const buyer = await storage.getUser(tradeOffer.buyerId);
+    if (!buyer) {
+      return res.status(404).json({ error: "Buyer not found" });
+    }
+    
+    // Check if the buyer has enough funds for escrow
+    if (buyer.balance < escrowAmount) {
+      return res.status(400).json({ 
+        error: `The buyer doesn't have enough funds (${escrowAmount.toLocaleString('vi-VN')} ₫) to complete this trade.` 
+      });
+    }
+    
     // Withdraw funds from seller for escrow
-    const updatedUser = await storage.updateUser(user.id, {
+    await storage.updateUser(user.id, {
       balance: user.balance - escrowAmount
+    });
+    
+    // Withdraw funds from buyer for escrow
+    await storage.updateUser(buyer.id, {
+      balance: buyer.balance - escrowAmount
     });
     
     // Update the trade offer status to accepted and save escrow amount
@@ -224,6 +242,20 @@ export async function confirmDirectTrade(req: Request, res: Response) {
       const amountToReturn = escrowAmount - platformFee;
       await storage.updateUser(seller.id, {
         balance: seller.balance + amountToReturn
+      });
+    }
+    
+    // Return the buyer's escrow minus fee too
+    const buyer = await storage.getUser(tradeOffer.buyerId);
+    if (buyer && buyer.id !== user.id) {
+      // This is a safety check, but in reality, the confirming user should be the buyer
+      await storage.updateUser(buyer.id, {
+        balance: buyer.balance + escrowAmount - platformFee
+      });
+    } else {
+      // Since the current user is the buyer, update their balance
+      await storage.updateUser(user.id, {
+        balance: user.balance + escrowAmount - platformFee
       });
     }
     
@@ -308,13 +340,21 @@ export async function rejectDirectTradeOffer(req: Request, res: Response) {
       return res.status(400).json({ error: `Trade offer cannot be rejected when it's ${tradeOffer.status}` });
     }
     
-    // If the trade was already accepted, return the escrow amount
+    // If the trade was already accepted, return the escrow amount to both parties
     if (tradeOffer.status === "accepted" && tradeOffer.escrowAmount) {
       // Return the full escrow amount to the seller
       const seller = await storage.getUser(tradeOffer.sellerId);
       if (seller) {
         await storage.updateUser(seller.id, {
           balance: seller.balance + tradeOffer.escrowAmount
+        });
+      }
+      
+      // Return the full escrow amount to the buyer as well
+      const buyer = await storage.getUser(tradeOffer.buyerId);
+      if (buyer) {
+        await storage.updateUser(buyer.id, {
+          balance: buyer.balance + tradeOffer.escrowAmount
         });
       }
     }

@@ -16,6 +16,7 @@ interface DirectTradeOffer {
   offerItemDescription: string;
   offerValue: number;
   createdAt: string;
+  escrowAmount?: number;
 }
 
 interface DirectTradesListProps {
@@ -206,23 +207,37 @@ export function DirectTradesList({ type, userId }: DirectTradesListProps) {
               </div>
             )}
             
-            {/* For accepted offers, buyer needs to confirm */}
+            {/* For accepted offers, show escrow info and buyer needs to confirm */}
             {offer.status === "accepted" && (
-              <div className="flex gap-2 mt-4">
-                {type === "sent" && (
-                  <Button 
-                    onClick={() => handleConfirm(offer.id)}
-                    className="flex items-center gap-1"
-                  >
-                    <CheckCircle className="h-4 w-4" />
-                    Confirm Trade
-                  </Button>
-                )}
-                {type === "received" && (
-                  <div className="text-sm text-muted-foreground mt-2">
-                    Waiting for buyer to confirm the trade
+              <div className="mt-4">
+                {offer.escrowAmount && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-md p-3 mb-3">
+                    <p className="text-amber-800 font-medium mb-1">Escrow Information</p>
+                    <p className="text-sm text-amber-700">
+                      {offer.escrowAmount.toLocaleString('vi-VN')} ₫ has been held in escrow from both buyer and seller.
+                    </p>
+                    <p className="text-sm text-amber-700 mt-1">
+                      Upon trade confirmation, both parties will receive back: {(offer.escrowAmount - (offer.escrowAmount * 0.1)).toLocaleString('vi-VN')} ₫ (after 10% platform fee)
+                    </p>
                   </div>
                 )}
+                
+                <div className="flex gap-2">
+                  {type === "sent" && (
+                    <Button 
+                      onClick={() => handleConfirm(offer.id)}
+                      className="flex items-center gap-1"
+                    >
+                      <CheckCircle className="h-4 w-4" />
+                      Confirm Trade
+                    </Button>
+                  )}
+                  {type === "received" && (
+                    <div className="text-sm text-muted-foreground mt-2">
+                      Waiting for buyer to confirm the trade
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </CardContent>
