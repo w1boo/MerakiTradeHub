@@ -99,8 +99,25 @@ export default function ChatInterface({ conversationId }: ChatInterfaceProps) {
       
       return await res.json();
     },
-    onSuccess: () => {
+    onSuccess: (response) => {
       setMessage('');
+      
+      // If we created a new conversation with a temporary recipient,
+      // we need to set the selected conversation to the newly created conversation
+      if (temporaryRecipient !== null) {
+        if (response.conversation) {
+          // Set the selected conversation to the new conversation
+          setSelectedConversation(response.conversation.id);
+          // Clear the temporary recipient
+          setTemporaryRecipient(null);
+          
+          toast({
+            title: 'Conversation started',
+            description: 'Your message has been sent',
+          });
+        }
+      }
+      
       // Immediately refetch data
       refetchMessages();
       refetchConversations();
@@ -118,7 +135,17 @@ export default function ChatInterface({ conversationId }: ChatInterfaceProps) {
   const handleSendMessage = () => {
     if (!user || !message.trim()) return;
     
-    // Handle the case where conversationData might not be fully loaded yet
+    // Case 1: Using temporary recipient (new conversation)
+    if (temporaryRecipient !== null) {
+      console.log('Starting new conversation with user:', temporaryRecipient);
+      sendMessageMutation.mutate({
+        content: message,
+        receiverId: temporaryRecipient,
+      });
+      return;
+    }
+    
+    // Case 2: Existing conversation but no data yet
     if (!conversationData) {
       console.error('Conversation data is not available');
       toast({
@@ -129,7 +156,7 @@ export default function ChatInterface({ conversationId }: ChatInterfaceProps) {
       return;
     }
     
-    // Check if otherUser exists and has an id to prevent error
+    // Case 3: Existing conversation but missing otherUser
     if (!conversationData.otherUser || typeof conversationData.otherUser.id === 'undefined') {
       console.error('Other user data is missing in conversation:', JSON.stringify(conversationData));
       
@@ -162,7 +189,7 @@ export default function ChatInterface({ conversationId }: ChatInterfaceProps) {
       return;
     }
     
-    // Normal case - we have the other user information
+    // Case 4: Normal case - we have the other user information
     sendMessageMutation.mutate({
       content: message,
       receiverId: conversationData.otherUser.id,
@@ -189,6 +216,30 @@ export default function ChatInterface({ conversationId }: ChatInterfaceProps) {
 
   const getOtherUsername = (conversation: any) => {
     return conversation?.otherUser?.username || "Unknown User";
+  };
+
+  // Handle starting a direct message with user by ID
+  const startDirectMessage = (userId: number) => {
+    if (!user) return;
+    
+    // Find existing conversation with this user
+    const foundConversation = conversations.find((conv: any) => 
+      (conv.user1Id === user.id && conv.user2Id === userId) ||
+      (conv.user1Id === userId && conv.user2Id === user.id)
+    );
+    
+    if (foundConversation) {
+      // Use existing conversation
+      setSelectedConversation(foundConversation.id);
+    } else {
+      // Track temporary recipient for a new conversation
+      setTemporaryRecipient(userId);
+      setSelectedConversation(null);
+      toast({
+        title: "New conversation",
+        description: "Send a message to start the conversation",
+      });
+    }
   };
 
   // Format timestamp for display
@@ -422,6 +473,47 @@ export default function ChatInterface({ conversationId }: ChatInterfaceProps) {
                     </>
                   )}
                 </Button>
+              </div>
+            </div>
+          </div>
+        ) : temporaryRecipient !== null ? (
+          <div className="flex-1 flex flex-col">
+            <div className="p-4 border-b border-neutral-200 bg-white">
+              <h3 className="font-medium">New Conversation</h3>
+              <p className="text-sm text-neutral-500">Send a message to start chatting</p>
+            </div>
+            
+            <div className="flex-1 flex flex-col justify-end">
+              <div className="p-4 border-t border-neutral-200 bg-white">
+                <div className="flex items-end max-w-3xl mx-auto">
+                  <div className="flex-1">
+                    <Input
+                      value={message}
+                      onChange={(e) => setMessage(e.target.value)}
+                      onKeyDown={handleKeyPress}
+                      placeholder="Type a message to start the conversation..."
+                      className="w-full py-2 px-4 border border-neutral-200 rounded-full"
+                      autoFocus
+                    />
+                  </div>
+                  <Button 
+                    className="ml-2 px-4 py-2 text-white bg-primary rounded-full flex items-center gap-2"
+                    disabled={!message.trim() || sendMessageMutation.isPending}
+                    onClick={handleSendMessage}
+                  >
+                    {sendMessageMutation.isPending ? (
+                      <>
+                        <Icon icon="ri-loader-4-line animate-spin" />
+                        <span>Sending...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Icon icon="ri-send-plane-fill" />
+                        <span>Send</span>
+                      </>
+                    )}
+                  </Button>
+                </div>
               </div>
             </div>
           </div>

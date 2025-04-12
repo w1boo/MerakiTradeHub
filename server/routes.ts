@@ -634,20 +634,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const buyerId = message.senderId === product.sellerId 
           ? message.receiverId 
           : message.senderId;
+        
+        // Calculate middleman fee - use the higher trade value as required
+        // Extract trade value from message if available
+        let tradeValue = product.tradeValue || 0;
+        
+        if (message.tradeDetails) {
+          try {
+            // Parse trade details JSON if it's a string
+            const tradeDetailsObj = typeof message.tradeDetails === 'string' 
+              ? JSON.parse(message.tradeDetails) 
+              : message.tradeDetails;
+              
+            // If the trade message has a specified value, compare it with the product's trade value
+            if (tradeDetailsObj.price && typeof tradeDetailsObj.price === 'number') {
+              // Use the higher value for the trade transaction
+              tradeValue = Math.max(tradeValue, tradeDetailsObj.price);
+              console.log(`Using higher trade value for middleman fee: ${tradeValue}`);
+            }
+          } catch (e) {
+            console.error('Error parsing trade details:', e);
+          }
+        }
+        
+        // Calculate middleman fee (10% of trade value)
+        const platformFee = tradeValue * 0.1;
           
         const tradeTransaction = await storage.createTransaction({
           transactionId: `TRADE${Date.now()}`,
           productId: product.id,
           buyerId,
           sellerId: product.sellerId,
-          amount: product.tradeValue || 0,
-          platformFee: (product.tradeValue || 0) * 0.1, // 10% fee
+          amount: tradeValue,
+          platformFee,
           shipping: 0,
           status: 'completed',
           type: 'trade',
           tradeDetails: {
             messageId,
-            tradeOffer: message.content
+            tradeOffer: message.content,
+            tradeValue,
+            platformFee
           },
           timeline: [
             {
@@ -658,7 +685,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             {
               status: 'completed',
               timestamp: new Date(),
-              note: 'Trade completed successfully'
+              note: `Trade completed successfully. Middleman fee: ${platformFee} VND (10%)`
             }
           ]
         });
