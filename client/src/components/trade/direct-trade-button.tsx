@@ -32,6 +32,8 @@ export function DirectTradeButton({
     
     setIsSubmitting(true);
     try {
+      console.log("Sending trade offer with image:", offerItemImage ? "Image exists" : "No image");
+      
       // Create a direct trade offer using the direct trade API
       const res = await apiRequest("POST", "/api/direct-trades", {
         productId,

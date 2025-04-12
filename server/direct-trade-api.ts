@@ -43,6 +43,9 @@ export async function createDirectTradeOffer(req: Request, res: Response) {
       return res.status(404).json({ error: "Product not found" });
     }
 
+    // Debug logging
+    console.log("Creating trade offer with image:", offerItemImage ? "Image exists (length: " + offerItemImage.length + ")" : "No image");
+    
     // Create the trade offer - convert single image to array for the schema
     const tradeOffer = await storage.createTradeOffer({
       productId,

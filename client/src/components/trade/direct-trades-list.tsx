@@ -48,7 +48,9 @@ export function DirectTradesList({ type, userId }: DirectTradesListProps) {
       if (!response.ok) {
         throw new Error("Failed to fetch trade offers");
       }
-      return response.json() as Promise<DirectTradeOffer[]>;
+      const data = await response.json();
+      console.log("Direct trade offers:", data); // Debug logging
+      return data as DirectTradeOffer[];
     },
   });
   
@@ -224,7 +226,12 @@ export function DirectTradesList({ type, userId }: DirectTradesListProps) {
                           className="h-16 w-16 object-cover rounded-md"
                         />
                       </div>
-                    ) : null}
+                    ) : (
+                      console.log("No images found for offer:", offer),
+                      <div className="mr-3 flex-shrink-0 h-16 w-16 bg-gray-200 rounded-md flex items-center justify-center">
+                        <ImageIcon className="h-8 w-8 text-gray-400" />
+                      </div>
+                    )}
                     <div className="flex-1">
                       <p className="font-medium text-base">{offer.offerItemName || "No name provided"}</p>
                       <p className="text-sm text-muted-foreground whitespace-pre-wrap">
