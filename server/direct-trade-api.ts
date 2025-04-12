@@ -24,6 +24,7 @@ export async function createDirectTradeOffer(req: Request, res: Response) {
       offerItemName,
       offerItemDescription,
       offerItemImage,
+      offerItemImages, // Accept offerItemImages directly
       status
     } = req.body;
 
@@ -44,9 +45,15 @@ export async function createDirectTradeOffer(req: Request, res: Response) {
     }
 
     // Debug logging
-    console.log("Creating trade offer with image:", offerItemImage ? "Image exists (length: " + offerItemImage.length + ")" : "No image");
+    if (offerItemImage) {
+      console.log("Creating trade offer with image:", "Image exists (length: " + offerItemImage.length + ")");
+    } else if (offerItemImages) {
+      console.log("Creating trade offer with images array:", "Array exists with length: " + offerItemImages.length);
+    } else {
+      console.log("Creating trade offer with no images");
+    }
     
-    // Create the trade offer - convert single image to array for the schema
+    // Create the trade offer - use offerItemImages if provided, else convert single image to array
     const tradeOffer = await storage.createTradeOffer({
       productId,
       sellerId,
@@ -55,7 +62,7 @@ export async function createDirectTradeOffer(req: Request, res: Response) {
       offerValue,
       offerItemName,
       offerItemDescription,
-      offerItemImages: offerItemImage ? [offerItemImage] : [], // Convert single image to array
+      offerItemImages: offerItemImages || (offerItemImage ? [offerItemImage] : []), // Use array if provided
       isDirect: true,
       createdAt: new Date(),
       updatedAt: new Date()
