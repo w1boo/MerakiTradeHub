@@ -22,6 +22,7 @@ export default function ChatInterface({ conversationId }: ChatInterfaceProps) {
   const { toast } = useToast();
   const [message, setMessage] = useState("");
   const [selectedConversation, setSelectedConversation] = useState<number | null>(null);
+  const [temporaryRecipient, setTemporaryRecipient] = useState<number | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Set selected conversation from props if provided
