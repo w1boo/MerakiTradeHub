@@ -564,14 +564,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Simple direct trade acceptance endpoint
-  app.post("/api/trade/simple-accept", ensureAuthenticated, async (req, res) => {
+  // Simple direct trade acceptance endpoint (supports both GET and POST)
+  app.all("/api/trade/simple-accept", ensureAuthenticated, async (req, res) => {
     try {
       const userId = req.user!.id;
-      const { messageId } = req.body;
+      // Get message ID from either body (POST) or query (GET)
+      const messageId = req.method === 'GET' 
+        ? parseInt(req.query.messageId as string) 
+        : req.body.messageId;
       
       console.log(`=== DIRECT TRADE ACCEPTANCE ===`);
-      console.log(`User ${userId} accepting trade for message ${messageId}`);
+      console.log(`User ${userId} accepting trade for message ${messageId} via ${req.method}`);
       
       // Get the message
       const message = await storage.getMessage(messageId);
