@@ -110,19 +110,21 @@ export default function ListingFormPage() {
   // Update form with product data when editing
   useEffect(() => {
     if (isEditing && productData && !form.formState.isDirty) {
-      form.reset({
+      const formValues = {
         title: productData.title,
         description: productData.description,
         price: productData.price,
         tradeValue: productData.tradeValue,
-        images: productData.images,
+        images: productData.images || [],
         categoryId: productData.categoryId,
         location: productData.location,
         allowBuy: productData.allowBuy,
         allowTrade: productData.allowTrade,
         status: productData.status
-      });
-      setSelectedImages(productData.images);
+      };
+      
+      form.reset(formValues);
+      setSelectedImages(productData.images || []);
     }
   }, [productData, isEditing, form]);
   
@@ -242,8 +244,6 @@ export default function ListingFormPage() {
   
   // Process the files
   const handleFiles = (files: FileList) => {
-    const newImages: string[] = [];
-    
     Array.from(files).forEach(file => {
       // Only process image files
       if (!file.type.match('image.*')) {
@@ -261,7 +261,12 @@ export default function ListingFormPage() {
         if (e.target && e.target.result) {
           const dataUrl = e.target.result as string;
           if (!selectedImages.includes(dataUrl)) {
-            setSelectedImages(prev => [...prev, dataUrl]);
+            // Update both the local state and the form state
+            const newImages = [...selectedImages, dataUrl];
+            setSelectedImages(newImages);
+            
+            // Set the images value in the form
+            form.setValue('images', newImages);
           }
         }
       };
@@ -271,7 +276,10 @@ export default function ListingFormPage() {
   
   // Remove an image
   const handleRemoveImage = (imageUrl: string) => {
-    setSelectedImages(selectedImages.filter(img => img !== imageUrl));
+    const newImages = selectedImages.filter(img => img !== imageUrl);
+    setSelectedImages(newImages);
+    // Update the form state
+    form.setValue('images', newImages);
   };
   
   if (!user) {
