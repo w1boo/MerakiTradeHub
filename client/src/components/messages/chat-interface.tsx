@@ -10,6 +10,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Icon } from "@/components/ui/theme";
 import { format } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "@/components/ui/toast"; // Assuming a toast component exists
 
 interface ChatInterfaceProps {
   conversationId?: number;
@@ -20,13 +21,13 @@ export default function ChatInterface({ conversationId }: ChatInterfaceProps) {
   const [message, setMessage] = useState("");
   const [selectedConversation, setSelectedConversation] = useState<number | null>(conversationId || null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  
+
   // Fetch conversations
   const { data: conversations, isLoading: isLoadingConversations } = useQuery<Conversation[]>({
     queryKey: ["/api/conversations"],
     enabled: !!user,
   });
-  
+
   // Fetch messages for selected conversation
   const { data: conversationData, isLoading: isLoadingMessages } = useQuery<{
     conversation: Conversation;
@@ -36,7 +37,7 @@ export default function ChatInterface({ conversationId }: ChatInterfaceProps) {
     queryKey: ["/api/conversations", selectedConversation],
     enabled: !!selectedConversation,
   });
-  
+
   // Send message mutation
   const sendMessageMutation = useMutation({
     mutationFn: async (data: { receiverId: number, content: string }) => {
@@ -49,7 +50,7 @@ export default function ChatInterface({ conversationId }: ChatInterfaceProps) {
     onSuccess: () => {
       // Clear message input
       setMessage("");
-      
+
       // Invalidate queries to refresh data
       if (selectedConversation) {
         queryClient.invalidateQueries({ queryKey: ["/api/conversations", selectedConversation] });
@@ -57,37 +58,44 @@ export default function ChatInterface({ conversationId }: ChatInterfaceProps) {
       queryClient.invalidateQueries({ queryKey: ["/api/conversations"] });
     }
   });
-  
+
   // Scroll to bottom when messages change
   useEffect(() => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, [conversationData?.messages]);
-  
+
   const handleSendMessage = () => {
-    if (!message.trim() || !conversationData?.otherUser || !user) return;
-    
+    if (!message.trim() || !conversationData?.otherUser) return;
+
     sendMessageMutation.mutate({
       receiverId: conversationData.otherUser.id,
-      content: message
+      content: message.trim()
     }, {
       onSuccess: () => {
-        // Invalidate both queries to refresh messages
+        setMessage("");
+        // Refresh the conversation data
         queryClient.invalidateQueries({ queryKey: ["/api/conversations", selectedConversation] });
         queryClient.invalidateQueries({ queryKey: ["/api/conversations"] });
-        setMessage(""); // Clear input after sending
+      },
+      onError: (error) => {
+        toast({
+          title: "Failed to send message",
+          description: error.message,
+          variant: "destructive"
+        });
       }
     });
   };
-  
+
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
     }
   };
-  
+
   const getUserInitials = (user?: User) => {
     if (!user) return "U";
     if (user.firstName && user.lastName) {
@@ -97,17 +105,17 @@ export default function ChatInterface({ conversationId }: ChatInterfaceProps) {
     }
     return "U";
   };
-  
+
   const formatMessageTime = (date: Date) => {
     return format(new Date(date), "h:mm a");
   };
-  
+
   return (
     <div className="bg-white rounded-xl shadow-xl w-full h-[80vh] flex flex-col">
       <div className="p-4 border-b border-neutral-200 flex justify-between items-center">
         <h2 className="text-xl font-semibold">Messages</h2>
       </div>
-      
+
       <div className="flex-1 flex overflow-hidden">
         {/* Contacts List */}
         <div className="w-1/3 border-r border-neutral-200 overflow-y-auto">
@@ -121,7 +129,7 @@ export default function ChatInterface({ conversationId }: ChatInterfaceProps) {
               <Icon icon="ri-search-line" className="absolute left-3 top-1/2 transform -translate-y-1/2 text-neutral-600" />
             </div>
           </div>
-          
+
           {isLoadingConversations ? (
             Array(3).fill(0).map((_, i) => (
               <div key={i} className="p-3 border-b border-neutral-200">
@@ -169,7 +177,7 @@ export default function ChatInterface({ conversationId }: ChatInterfaceProps) {
             </div>
           )}
         </div>
-        
+
         {/* Chat Area */}
         {selectedConversation && conversationData ? (
           <div className="flex-1 flex flex-col">
@@ -199,7 +207,7 @@ export default function ChatInterface({ conversationId }: ChatInterfaceProps) {
                 </Button>
               </div>
             </div>
-            
+
             <ScrollArea className="flex-1 p-4">
               {/* Conversation */}
               <div className="space-y-4">
@@ -245,7 +253,7 @@ export default function ChatInterface({ conversationId }: ChatInterfaceProps) {
                 <div ref={messagesEndRef} />
               </div>
             </ScrollArea>
-            
+
             <div className="p-3 border-t border-neutral-200">
               <div className="flex items-end">
                 <Button variant="ghost" size="icon" className="text-neutral-600 hover:text-primary">

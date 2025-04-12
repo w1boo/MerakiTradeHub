@@ -86,7 +86,7 @@ export default function ProfilePage() {
   const [isAddFundsModalOpen, setAddFundsModalOpen] = useState(false);
   const [isWithdrawModalOpen, setWithdrawModalOpen] = useState(false);
   const [isEditProfileModalOpen, setEditProfileModalOpen] = useState(false);
-  
+
   // Parse URL query for initial tab selection
   useEffect(() => {
     const searchParams = new URLSearchParams(window.location.search);
@@ -95,17 +95,17 @@ export default function ProfilePage() {
       setActiveTab(tabParam);
     }
   }, [location]);
-  
+
   // Fetch user's products
   const { 
     data: userProducts, 
     isLoading: isLoadingProducts,
     error: productsError
-  } = useQuery<Product[]>({
-    queryKey: ["/api/products/user"],
+  } = useQuery({
+    queryKey: ["/api/products/user", user?.id], // Updated query key
     enabled: !!user,
   });
-  
+
   // Fetch user's financial history
   const { 
     data: deposits,
@@ -114,7 +114,7 @@ export default function ProfilePage() {
     queryKey: ["/api/deposits"],
     enabled: !!user && activeTab === "finances",
   });
-  
+
   const { 
     data: withdrawals,
     isLoading: isLoadingWithdrawals
@@ -122,7 +122,7 @@ export default function ProfilePage() {
     queryKey: ["/api/withdrawals"],
     enabled: !!user && activeTab === "finances",
   });
-  
+
   // Setup withdrawal form
   const withdrawalForm = useForm<WithdrawalFormValues>({
     resolver: zodResolver(withdrawalSchema),
@@ -131,7 +131,7 @@ export default function ProfilePage() {
       method: "bankTransfer",
     },
   });
-  
+
   // Setup profile update form
   const profileUpdateForm = useForm<ProfileUpdateFormValues>({
     resolver: zodResolver(profileUpdateSchema),
@@ -148,7 +148,7 @@ export default function ProfilePage() {
       location: user?.location || "",
     },
   });
-  
+
   // Withdrawal mutation
   const withdrawalMutation = useMutation({
     mutationFn: async (data: WithdrawalFormValues) => {
@@ -173,7 +173,7 @@ export default function ProfilePage() {
       });
     }
   });
-  
+
   // Profile update mutation
   const profileUpdateMutation = useMutation({
     mutationFn: async (data: ProfileUpdateFormValues) => {
@@ -196,11 +196,11 @@ export default function ProfilePage() {
       });
     }
   });
-  
+
   // Handle withdrawal submission
   const onWithdrawalSubmit = (data: WithdrawalFormValues) => {
     if (!user) return;
-    
+
     // Check if amount is <= user balance
     if (data.amount > user.balance) {
       toast({
@@ -210,24 +210,24 @@ export default function ProfilePage() {
       });
       return;
     }
-    
+
     withdrawalMutation.mutate(data);
   };
-  
+
   // Handle profile update submission
   const onProfileUpdateSubmit = (data: ProfileUpdateFormValues) => {
     profileUpdateMutation.mutate(data);
   };
-  
+
   // Format date helper
   const formatDate = (date: Date) => {
     return format(new Date(date), 'MMM dd, yyyy');
   };
-  
+
   // Get user initials for avatar
   const getUserInitials = () => {
     if (!user) return "";
-    
+
     if (user.firstName && user.lastName) {
       return `${user.firstName[0]}${user.lastName[0]}`;
     } else if (user.username) {
@@ -235,16 +235,16 @@ export default function ProfilePage() {
     }
     return "";
   };
-  
+
   return (
     <div className="flex flex-col min-h-screen">
       <Header />
-      
+
       <main className="flex-grow pb-24 md:pb-0">
         <div className="container mx-auto px-4 py-6">
           {/* Account Summary */}
           <AccountSummary />
-          
+
           {/* Profile Information and Tabs */}
           <div className="bg-white rounded-lg shadow-sm overflow-hidden mb-6">
             <div className="p-6 flex flex-col md:flex-row items-center md:items-start gap-6">
@@ -252,7 +252,7 @@ export default function ProfilePage() {
                 <AvatarImage src={user?.avatar} />
                 <AvatarFallback className="text-xl">{getUserInitials()}</AvatarFallback>
               </Avatar>
-              
+
               <div className="flex-1 text-center md:text-left">
                 <h1 className="text-2xl font-bold">
                   {user?.firstName && user?.lastName 
@@ -280,7 +280,7 @@ export default function ProfilePage() {
                 </Button>
               </div>
             </div>
-            
+
             <Tabs value={activeTab} onValueChange={setActiveTab}>
               <TabsList className="flex border-b border-neutral-200 px-6">
                 <TabsTrigger value="profile" className="flex-1 rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary">
@@ -296,7 +296,7 @@ export default function ProfilePage() {
                   Settings
                 </TabsTrigger>
               </TabsList>
-              
+
               <TabsContent value="profile" className="p-6">
                 <div className="max-w-2xl">
                   <h2 className="text-xl font-semibold mb-4">About Me</h2>
@@ -305,7 +305,7 @@ export default function ProfilePage() {
                       ? `Hi, I'm ${user.firstName} ${user.lastName}.` 
                       : `Hi, I'm ${user?.username}.`} Welcome to my Meraki profile!
                   </p>
-                  
+
                   <h2 className="text-xl font-semibold mb-4">Activity</h2>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <Card>
@@ -319,7 +319,7 @@ export default function ProfilePage() {
                         <p className="text-3xl font-bold">{userProducts?.length || 0}</p>
                       </CardContent>
                     </Card>
-                    
+
                     <Card>
                       <CardHeader className="pb-2">
                         <CardTitle className="text-lg flex items-center">
@@ -331,7 +331,7 @@ export default function ProfilePage() {
                         <p className="text-3xl font-bold">0</p>
                       </CardContent>
                     </Card>
-                    
+
                     <Card>
                       <CardHeader className="pb-2">
                         <CardTitle className="text-lg flex items-center">
@@ -346,7 +346,7 @@ export default function ProfilePage() {
                   </div>
                 </div>
               </TabsContent>
-              
+
               <TabsContent value="listings" className="p-6">
                 <div className="flex justify-between items-center mb-6">
                   <h2 className="text-xl font-semibold">My Listed Items</h2>
@@ -357,7 +357,7 @@ export default function ProfilePage() {
                     </a>
                   </Button>
                 </div>
-                
+
                 {isLoadingProducts ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                     {[...Array(4)].map((_, i) => (
@@ -387,7 +387,7 @@ export default function ProfilePage() {
                   </div>
                 )}
               </TabsContent>
-              
+
               <TabsContent value="finances" className="p-6">
                 <div className="mb-6">
                   <div className="flex items-center justify-between mb-4">
@@ -407,7 +407,7 @@ export default function ProfilePage() {
                       </Button>
                     </div>
                   </div>
-                  
+
                   <Card>
                     <CardContent className="p-6">
                       <div className="flex flex-col md:flex-row justify-between">
@@ -429,13 +429,13 @@ export default function ProfilePage() {
                     </CardContent>
                   </Card>
                 </div>
-                
+
                 <Tabs defaultValue="deposits" className="mt-8">
                   <TabsList>
                     <TabsTrigger value="deposits">Deposits</TabsTrigger>
                     <TabsTrigger value="withdrawals">Withdrawals</TabsTrigger>
                   </TabsList>
-                  
+
                   <TabsContent value="deposits" className="mt-4">
                     <Card>
                       <CardHeader>
@@ -491,7 +491,7 @@ export default function ProfilePage() {
                       </CardContent>
                     </Card>
                   </TabsContent>
-                  
+
                   <TabsContent value="withdrawals" className="mt-4">
                     <Card>
                       <CardHeader>
@@ -549,11 +549,11 @@ export default function ProfilePage() {
                   </TabsContent>
                 </Tabs>
               </TabsContent>
-              
+
               <TabsContent value="settings" className="p-6">
                 <div className="max-w-2xl">
                   <h2 className="text-xl font-semibold mb-4">Account Settings</h2>
-                  
+
                   <Card className="mb-6">
                     <CardHeader>
                       <CardTitle>Notification Preferences</CardTitle>
@@ -598,7 +598,7 @@ export default function ProfilePage() {
                       </div>
                     </CardContent>
                   </Card>
-                  
+
                   <Card className="mb-6">
                     <CardHeader>
                       <CardTitle>Privacy Settings</CardTitle>
@@ -625,7 +625,7 @@ export default function ProfilePage() {
                       </div>
                     </CardContent>
                   </Card>
-                  
+
                   <Card>
                     <CardHeader>
                       <CardTitle className="text-red-600">Danger Zone</CardTitle>
@@ -647,16 +647,16 @@ export default function ProfilePage() {
           </div>
         </div>
       </main>
-      
+
       <Footer />
       <MobileNav />
-      
+
       {/* Add Funds Modal */}
       <AddFundsModal 
         isOpen={isAddFundsModalOpen} 
         onClose={() => setAddFundsModalOpen(false)} 
       />
-      
+
       {/* Withdraw Funds Modal */}
       <Dialog open={isWithdrawModalOpen} onOpenChange={setWithdrawModalOpen}>
         <DialogContent>
@@ -666,7 +666,7 @@ export default function ProfilePage() {
               Withdraw funds from your Meraki account to your bank account or other payment method.
             </DialogDescription>
           </DialogHeader>
-          
+
           <Form {...withdrawalForm}>
             <form onSubmit={withdrawalForm.handleSubmit(onWithdrawalSubmit)} className="space-y-4">
               <FormField
@@ -696,7 +696,7 @@ export default function ProfilePage() {
                   </FormItem>
                 )}
               />
-              
+
               <FormField
                 control={withdrawalForm.control}
                 name="method"
@@ -715,14 +715,14 @@ export default function ProfilePage() {
                   </FormItem>
                 )}
               />
-              
+
               <div className="p-3 bg-neutral-100 rounded-lg text-neutral-700 text-sm">
                 <p>
                   Withdrawals typically take 2-3 business days to process. 
                   There is no fee for standard withdrawals.
                 </p>
               </div>
-              
+
               <DialogFooter>
                 <Button 
                   type="button" 
@@ -749,7 +749,7 @@ export default function ProfilePage() {
           </Form>
         </DialogContent>
       </Dialog>
-      
+
       {/* Edit Profile Modal */}
       <Dialog open={isEditProfileModalOpen} onOpenChange={setEditProfileModalOpen}>
         <DialogContent>
@@ -759,7 +759,7 @@ export default function ProfilePage() {
               Update your profile information
             </DialogDescription>
           </DialogHeader>
-          
+
           <Form {...profileUpdateForm}>
             <form onSubmit={profileUpdateForm.handleSubmit(onProfileUpdateSubmit)} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
@@ -776,7 +776,7 @@ export default function ProfilePage() {
                     </FormItem>
                   )}
                 />
-                
+
                 <FormField
                   control={profileUpdateForm.control}
                   name="lastName"
@@ -791,7 +791,7 @@ export default function ProfilePage() {
                   )}
                 />
               </div>
-              
+
               <FormField
                 control={profileUpdateForm.control}
                 name="email"
@@ -805,7 +805,7 @@ export default function ProfilePage() {
                   </FormItem>
                 )}
               />
-              
+
               <FormField
                 control={profileUpdateForm.control}
                 name="location"
@@ -819,7 +819,7 @@ export default function ProfilePage() {
                   </FormItem>
                 )}
               />
-              
+
               <DialogFooter>
                 <Button 
                   type="button" 
