@@ -31,15 +31,43 @@ export default function DirectTradeAcceptPage() {
       setStatus('loading');
       setStatusMessage('Processing trade acceptance...');
       
-      // Direct API call without relying on message IDs
-      const response = await fetch(`/api/trade/simple-accept`, {
+      // Completely rewritten trade acceptance logic without message dependencies
+      // This version manually creates a transaction directly
+      
+      // First, fetch the product to ensure it exists
+      const productResponse = await fetch(`/api/products/${productId}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!productResponse.ok) {
+        const productData = await productResponse.json();
+        throw new Error(productData.error || 'Product not found');
+      }
+      
+      const product = await productResponse.json();
+      
+      // Create transaction directly
+      const response = await fetch(`/api/transactions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           productId: Number(productId),
-          userId: user?.id
+          amount: product.tradeValue || 0,
+          type: 'trade',
+          status: 'completed',
+          shipping: 0,
+          timeline: [
+            {
+              status: 'completed',
+              timestamp: new Date(),
+              description: 'Trade completed directly'
+            }
+          ]
         })
       });
       
@@ -49,12 +77,23 @@ export default function DirectTradeAcceptPage() {
         throw new Error(data.error || 'Failed to accept trade');
       }
       
+      // Mark product as sold
+      await fetch(`/api/products/${productId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          status: 'sold'
+        })
+      });
+      
       setStatus('success');
-      setStatusMessage(data.message || 'Trade accepted successfully');
+      setStatusMessage('Trade accepted successfully for product: ' + product.title);
       
       toast({
         title: 'Trade Accepted',
-        description: data.message || 'Trade was accepted successfully',
+        description: 'Trade was accepted successfully for: ' + product.title,
       });
       
     } catch (error) {
