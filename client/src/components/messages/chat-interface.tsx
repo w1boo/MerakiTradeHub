@@ -56,24 +56,8 @@ export default function ChatInterface({ conversationId }: ChatInterfaceProps) {
         queryClient.invalidateQueries({ queryKey: ["/api/conversations", selectedConversation] });
       }
       queryClient.invalidateQueries({ queryKey: ["/api/conversations"] });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Error sending message",
-        description: error.message,
-        variant: "destructive"
-      });
     }
   });
-
-  const handleSendMessage = () => {
-    if (!message.trim() || !conversationData?.otherUser) return;
-
-    sendMessageMutation.mutate({
-      receiverId: conversationData.otherUser.id,
-      content: message
-    });
-  };
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -81,6 +65,29 @@ export default function ChatInterface({ conversationId }: ChatInterfaceProps) {
       messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, [conversationData?.messages]);
+
+  const handleSendMessage = () => {
+    if (!message.trim() || !conversationData?.otherUser) return;
+
+    sendMessageMutation.mutate({
+      receiverId: conversationData.otherUser.id,
+      content: message.trim()
+    }, {
+      onSuccess: () => {
+        setMessage("");
+        // Refresh the conversation data
+        queryClient.invalidateQueries({ queryKey: ["/api/conversations", selectedConversation] });
+        queryClient.invalidateQueries({ queryKey: ["/api/conversations"] });
+      },
+      onError: (error) => {
+        toast({
+          title: "Failed to send message",
+          description: error.message,
+          variant: "destructive"
+        });
+      }
+    });
+  };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
