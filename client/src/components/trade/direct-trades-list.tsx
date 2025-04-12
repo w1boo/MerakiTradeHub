@@ -215,22 +215,26 @@ export function DirectTradesList({ type, userId }: DirectTradesListProps) {
               <div>
                 <h3 className="font-medium mb-1">Offered Item</h3>
                 <div className="bg-muted p-3 rounded-md">
-                  <div className="flex mb-2">
+                  <div className="flex items-start mb-2">
                     {offer.offerItemImage ? (
                       <div className="mr-3 flex-shrink-0">
                         <img 
                           src={offer.offerItemImage} 
                           alt={offer.offerItemName} 
-                          className="h-12 w-12 object-cover rounded-md"
+                          className="h-16 w-16 object-cover rounded-md"
                         />
                       </div>
                     ) : null}
-                    <div>
-                      <p className="font-medium">{offer.offerItemName}</p>
-                      <p className="text-sm text-muted-foreground">{offer.offerItemDescription}</p>
+                    <div className="flex-1">
+                      <p className="font-medium text-base">{offer.offerItemName || "No name provided"}</p>
+                      <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                        {offer.offerItemDescription || "No description provided"}
+                      </p>
+                      <p className="text-sm font-medium mt-2">
+                        {offer.offerValue?.toLocaleString('vi-VN')} ₫
+                      </p>
                     </div>
                   </div>
-                  <p className="text-sm font-medium mt-2">{offer.offerValue.toLocaleString('vi-VN')} ₫</p>
                 </div>
               </div>
               <div>
@@ -245,29 +249,29 @@ export function DirectTradesList({ type, userId }: DirectTradesListProps) {
                     <p className="text-red-500 text-sm">Error loading product details</p>
                   ) : productQueries.data && productQueries.data[offer.productId] ? (
                     <div>
-                      <div className="flex mb-2">
+                      <div className="flex items-start mb-2">
                         {productQueries.data[offer.productId].images && 
                          productQueries.data[offer.productId].images.length > 0 && (
                           <div className="mr-3 flex-shrink-0">
                             <img 
                               src={productQueries.data[offer.productId].images[0]} 
                               alt={productQueries.data[offer.productId].title} 
-                              className="h-12 w-12 object-cover rounded-md"
+                              className="h-16 w-16 object-cover rounded-md"
                             />
                           </div>
                         )}
-                        <div>
-                          <p className="font-medium">{productQueries.data[offer.productId].title}</p>
-                          <p className="text-sm text-muted-foreground line-clamp-2">
+                        <div className="flex-1">
+                          <p className="font-medium text-base">{productQueries.data[offer.productId].title}</p>
+                          <p className="text-sm text-muted-foreground whitespace-pre-wrap">
                             {productQueries.data[offer.productId].description}
                           </p>
+                          {productQueries.data[offer.productId].price && (
+                            <p className="text-sm font-medium mt-2">
+                              {productQueries.data[offer.productId].price.toLocaleString('vi-VN')} ₫
+                            </p>
+                          )}
                         </div>
                       </div>
-                      {productQueries.data[offer.productId].price && (
-                        <p className="text-sm font-medium mt-2">
-                          {productQueries.data[offer.productId].price.toLocaleString('vi-VN')} ₫
-                        </p>
-                      )}
                       <div className="text-xs text-muted-foreground mt-1">ID: #{offer.productId}</div>
                     </div>
                   ) : (
