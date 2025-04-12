@@ -12,6 +12,7 @@ import { format } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import TradeOfferMessage from "@/components/messages/trade-offer-message";
+import { TradeMessageWrapper } from "@/components/trade/trade-message-wrapper";
 
 interface ChatInterfaceProps {
   conversationId?: number;
@@ -388,15 +389,25 @@ export default function ChatInterface({ conversationId }: ChatInterfaceProps) {
                       
                       // Display trade message
                       if (msg.isTrade === true && user) {
-                        return (
-                          <div key={msg.id} className="w-full">
-                            <TradeOfferMessage
-                              message={msg}
-                              currentUser={user}
-                              otherUser={conversationData.otherUser}
-                            />
-                          </div>
-                        );
+                        // Check if message has tradeOfferId (new system)
+                        if (msg.tradeOfferId) {
+                          return (
+                            <div key={msg.id} className="w-full">
+                              <TradeMessageWrapper message={msg} />
+                            </div>
+                          );
+                        } else {
+                          // Fall back to old system if no tradeOfferId
+                          return (
+                            <div key={msg.id} className="w-full">
+                              <TradeOfferMessage
+                                message={msg}
+                                currentUser={user}
+                                otherUser={conversationData.otherUser}
+                              />
+                            </div>
+                          );
+                        }
                       }
                       
                       // Regular message
