@@ -66,6 +66,7 @@ export const messages = pgTable("messages", {
   isRead: boolean("is_read").default(false).notNull(),
   isTrade: boolean("is_trade").default(false).notNull(),
   productId: integer("product_id").references(() => products.id),
+  tradeDetails: text("trade_details"),
   tradeConfirmedBuyer: boolean("trade_confirmed_buyer").default(false).notNull(),
   tradeConfirmedSeller: boolean("trade_confirmed_seller").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -146,6 +147,7 @@ export const insertMessageSchema = createInsertSchema(messages).pick({
   images: true,
   isTrade: true,
   productId: true,
+  tradeDetails: true,
   tradeConfirmedBuyer: true,
   tradeConfirmedSeller: true,
 });

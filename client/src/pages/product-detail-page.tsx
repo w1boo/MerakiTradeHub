@@ -642,105 +642,15 @@ export default function ProductDetailPage() {
         </DialogContent>
       </Dialog>
       
-      {/* Trade Offer Modal */}
-      <Dialog open={isTradeModalOpen} onOpenChange={setTradeModalOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Make Trade Offer</DialogTitle>
-            <DialogDescription>
-              Offer a trade for this item. Your offer will be held in escrow until the trade is completed.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <form onSubmit={handleTradeSubmit}>
-            <div className="grid gap-4 py-4">
-              <div className="flex items-center gap-4">
-                <img 
-                  src={product.images[0]} 
-                  alt={product.title} 
-                  className="w-16 h-16 rounded-md object-cover"
-                />
-                <div>
-                  <h3 className="font-medium">{product.title}</h3>
-                  <p className="text-sm text-neutral-600">
-                    {product.tradeValue 
-                      ? `Suggested Trade Value: ${product.tradeValue.toLocaleString('vi-VN')} ₫` 
-                      : "No suggested trade value"}
-                  </p>
-                </div>
-              </div>
-              
-              <Separator />
-              
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="tradeValue">Your Trade Offer Value</Label>
-                  <div className="relative mt-1">
-                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2">₫</span>
-                    <Input 
-                      id="tradeValue" 
-                      name="tradeValue" 
-                      type="number" 
-                      min="1000" 
-                      step="1000" 
-                      className="pl-8" 
-                      defaultValue={product.tradeValue?.toString() || ""}
-                      required
-                    />
-                  </div>
-                  <p className="text-sm text-neutral-500 mt-1">
-                    This amount will be held in escrow as security for the trade.
-                  </p>
-                </div>
-                
-                <div>
-                  <Label htmlFor="tradeMessage">Message to Seller</Label>
-                  <textarea 
-                    id="tradeMessage" 
-                    name="tradeMessage" 
-                    className="mt-1 w-full rounded-md border border-input p-2 text-sm"
-                    rows={3}
-                    placeholder="Describe what you'd like to trade for this item..."
-                  ></textarea>
-                </div>
-              </div>
-              
-              <div className="p-3 bg-amber-50 rounded-lg text-amber-700 text-sm">
-                <p className="flex items-start">
-                  <Icon icon="ri-information-line text-lg mr-2" className="flex-shrink-0 mt-0.5" />
-                  <span>
-                    Your trade offer is backed by an escrow deposit. If the trade is completed successfully, 
-                    90% of your deposit will be returned to your account. The remaining 10% is a platform fee.
-                  </span>
-                </p>
-              </div>
-            </div>
-            
-            <DialogFooter>
-              <Button 
-                type="button" 
-                variant="outline" 
-                onClick={() => setTradeModalOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button 
-                type="submit"
-                disabled={createTransactionMutation.isPending}
-              >
-                {createTransactionMutation.isPending ? (
-                  <>
-                    <Icon icon="ri-loader-4-line animate-spin mr-2" />
-                    Processing...
-                  </>
-                ) : (
-                  "Submit Trade Offer"
-                )}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+      {/* Enhanced Trade Offer Modal */}
+      {user && product && (
+        <TradeOfferModal
+          isOpen={isTradeModalOpen}
+          onClose={() => setTradeModalOpen(false)}
+          product={product}
+          user={user}
+        />
+      )}
       
       {/* Add Funds Modal */}
       <AddFundsModal 

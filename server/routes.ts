@@ -953,6 +953,94 @@ app.get("/api/admin/transactions", ensureAdmin, async (req, res) => {
     }
   });
 
+  // API route to create a trade offer
+  app.post("/api/trade-offers", ensureAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const {
+        productId,
+        sellerId,
+        offerMessage,
+        offerItemName,
+        offerItemDescription,
+        offerItemValue,
+        offerItemImages
+      } = req.body;
+      
+      // Validate input
+      if (!productId || !sellerId || !offerMessage || !offerItemName || !offerItemDescription || !offerItemValue) {
+        return res.status(400).json({ error: "Missing required fields for trade offer" });
+      }
+      
+      // Get the product to verify it exists and get trade details
+      const product = await storage.getProduct(productId);
+      if (!product) {
+        return res.status(404).json({ error: "Product not found" });
+      }
+      
+      // Check if product allows trades
+      if (!product.allowTrade) {
+        return res.status(400).json({ error: "This product doesn't allow trades" });
+      }
+      
+      // Check if user is not trying to trade with themselves
+      if (userId === sellerId) {
+        return res.status(400).json({ error: "You cannot trade with yourself" });
+      }
+      
+      // Save trade offer details in the message
+      const tradeDetails = {
+        offerItemName,
+        offerItemDescription,
+        offerItemValue,
+        offerItemImages: offerItemImages || [],
+        productId,
+        productTitle: product.title,
+        productImage: product.images[0],
+        status: "pending"
+      };
+      
+      // Create or get conversation
+      let conversation = await storage.getConversationByUsers(userId, sellerId);
+      
+      if (!conversation) {
+        conversation = await storage.createConversation({
+          user1Id: userId,
+          user2Id: sellerId,
+          lastMessageId: null
+        });
+      }
+      
+      // Create message with trade offer
+      const message = await storage.createMessage({
+        senderId: userId,
+        receiverId: sellerId,
+        content: offerMessage,
+        isTrade: true,
+        productId: productId,
+        tradeDetails: JSON.stringify(tradeDetails),
+        tradeConfirmedBuyer: false,
+        tradeConfirmedSeller: false,
+        isRead: false,
+        images: offerItemImages || null
+      });
+      
+      // Update conversation with last message ID
+      await storage.updateConversation(conversation.id, {
+        lastMessageId: message.id,
+        updatedAt: new Date()
+      });
+      
+      // Return the message data
+      res.status(201).json({
+        message,
+        conversation
+      });
+    } catch (error) {
+      console.error("Error creating trade offer:", error);
+      res.status(500).json({ error: "Failed to create trade offer" });
+    }
+  });
 
   const httpServer = createServer(app);
   return httpServer;
