@@ -11,6 +11,7 @@ import ProfilePage from "@/pages/profile-page";
 import ListingFormPage from "@/pages/listing-form-page";
 import TransactionsPage from "@/pages/transactions-page";
 import AdminPage from "@/pages/admin-page";
+import CategoryPage from "@/pages/category-page";
 import { AuthProvider } from "@/hooks/use-auth";
 import { ProtectedRoute, AdminRoute } from "./lib/protected-route";
 
@@ -20,6 +21,7 @@ function Router() {
       <ProtectedRoute path="/" component={HomePage} />
       <Route path="/auth" component={AuthPage} />
       <ProtectedRoute path="/products/:id" component={ProductDetailPage} />
+      <ProtectedRoute path="/categories/:id" component={CategoryPage} />
       <ProtectedRoute path="/messages" component={MessagingPage} />
       <ProtectedRoute path="/messages/:id" component={MessagingPage} />
       <ProtectedRoute path="/profile" component={ProfilePage} />
