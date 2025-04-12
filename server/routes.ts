@@ -1041,6 +1041,105 @@ app.get("/api/admin/transactions", ensureAdmin, async (req, res) => {
     }
   });
 
+  // Accept trade offer API
+  app.post("/api/trade-offers/:messageId/accept", ensureAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const messageId = parseInt(req.params.messageId);
+      
+      // Get the message
+      const message = await storage.getMessage(messageId);
+      
+      if (!message) {
+        return res.status(404).json({ error: "Trade offer not found" });
+      }
+      
+      // Check if this is a trade message
+      if (!message.isTrade) {
+        return res.status(400).json({ error: "This message is not a trade offer" });
+      }
+      
+      // Determine if user is buyer or seller
+      // User is buyer if they received the trade offer
+      // User is seller if they sent the trade offer
+      const isBuyer = message.receiverId === userId;
+      const isSeller = message.senderId === userId;
+      
+      if (!isBuyer && !isSeller) {
+        return res.status(403).json({ error: "You are not authorized to accept this trade" });
+      }
+      
+      // Update message based on user role
+      const updates: Partial<Message> = {};
+      
+      if (isBuyer) {
+        updates.tradeConfirmedBuyer = true;
+      }
+      
+      if (isSeller) {
+        updates.tradeConfirmedSeller = true;
+      }
+      
+      // Update the message
+      const updatedMessage = await storage.updateMessage(messageId, updates);
+      
+      // Check if both parties have confirmed
+      if (updatedMessage.tradeConfirmedBuyer && updatedMessage.tradeConfirmedSeller) {
+        // Both parties confirmed, create transaction
+        let tradeDetails;
+        try {
+          tradeDetails = JSON.parse(updatedMessage.tradeDetails || "{}");
+        } catch (e) {
+          console.error("Failed to parse trade details:", e);
+          tradeDetails = {};
+        }
+        
+        // Get product information
+        const product = await storage.getProduct(updatedMessage.productId);
+        
+        if (!product) {
+          return res.status(404).json({ error: "Product not found" });
+        }
+        
+        // Create transaction for trade
+        const transaction = await storage.createTransaction({
+          transactionId: `TRADE-${Date.now()}`,
+          productId: updatedMessage.productId,
+          buyerId: updatedMessage.senderId, // The person who initiated the trade is the buyer
+          sellerId: updatedMessage.receiverId, // The person who received the trade offer is the seller
+          amount: 0, // Trade has no monetary value in the system
+          platformFee: 0, // No fee for trades
+          shipping: null,
+          status: "processing",
+          type: "trade",
+          tradeDetails: updatedMessage.tradeDetails,
+          timeline: [
+            {
+              status: "created",
+              timestamp: new Date(),
+              note: "Trade confirmed by both parties"
+            }
+          ]
+        });
+        
+        res.status(200).json({
+          message: updatedMessage,
+          transaction,
+          status: "completed"
+        });
+      } else {
+        // Still waiting for other party to confirm
+        res.status(200).json({
+          message: updatedMessage,
+          status: "pending"
+        });
+      }
+    } catch (error) {
+      console.error("Error accepting trade offer:", error);
+      res.status(500).json({ error: "Failed to accept trade offer" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
