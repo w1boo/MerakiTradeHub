@@ -412,11 +412,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         images
       });
 
-      // Create message without the conversationId field as it's not in the schema
-      const message = await storage.createMessage({
-        ...messageData,
-        isRead: false
-      });
+      // Create the message
+      const message = await storage.createMessage(messageData);
 
       // Update conversation with last message ID only
       await storage.updateConversation(conversation.id, {

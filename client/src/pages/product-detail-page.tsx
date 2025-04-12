@@ -111,8 +111,13 @@ export default function ProductDetailPage() {
   });
   
   // Initialize messages with a seller
+  const [isMessagingLoading, setIsMessagingLoading] = useState(false);
+  
   const startConversation = async () => {
     if (!user || !product) return;
+    
+    // Set loading state
+    setIsMessagingLoading(true);
     
     try {
       const res = await apiRequest("POST", "/api/messages", {
@@ -120,19 +125,30 @@ export default function ProductDetailPage() {
         content: `Hi, I'm interested in your item: ${product.title}`
       });
       
+      // Check if response is ok
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Failed to send message");
+      }
+      
       const data = await res.json();
       toast({
         title: "Message sent",
         description: "You can now continue the conversation in your messages.",
       });
       
+      // Redirect to messaging page
       navigate("/messages");
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "Could not send message",
-        description: "Failed to start conversation. Please try again.",
+        description: error.message || "Failed to start conversation. Please try again.",
         variant: "destructive",
       });
+      console.error("Message error:", error);
+    } finally {
+      // Reset loading state
+      setIsMessagingLoading(false);
     }
   };
   
@@ -460,10 +476,19 @@ export default function ProductDetailPage() {
                     variant="outline"
                     className="flex-1"
                     onClick={startConversation}
-                    disabled={user?.id === product.sellerId}
+                    disabled={user?.id === product.sellerId || isMessagingLoading}
                   >
-                    <Icon icon="ri-message-3-line mr-2" />
-                    Message Seller
+                    {isMessagingLoading ? (
+                      <>
+                        <Icon icon="ri-loader-4-line animate-spin mr-2" />
+                        Sending...
+                      </>
+                    ) : (
+                      <>
+                        <Icon icon="ri-message-3-line mr-2" />
+                        Message Seller
+                      </>
+                    )}
                   </Button>
                 </div>
               </div>
