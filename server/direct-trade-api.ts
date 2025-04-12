@@ -199,8 +199,18 @@ export async function confirmDirectTrade(req: Request, res: Response) {
       amount: tradeValue,
       platformFee,
       transactionId: uuidv4(),
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      timeline: [
+        {
+          status: "created",
+          timestamp: new Date().toISOString(),
+          note: "Trade initiated"
+        },
+        {
+          status: "completed",
+          timestamp: new Date().toISOString(),
+          note: "Trade completed successfully"
+        }
+      ],
       tradeDetails: {
         tradeOfferId: tradeOffer.id,
         offerItemName: tradeOffer.offerItemName,
@@ -211,14 +221,12 @@ export async function confirmDirectTrade(req: Request, res: Response) {
     
     // Update the trade offer status to completed
     const updatedOffer = await storage.updateTradeOffer(Number(id), {
-      status: "completed",
-      updatedAt: new Date()
+      status: "completed"
     });
     
     // Remove the product as it's been traded
     await storage.updateProduct(product.id, {
-      status: "sold",
-      updatedAt: new Date()
+      status: "sold"
     });
     
     res.json({
@@ -262,8 +270,7 @@ export async function rejectDirectTradeOffer(req: Request, res: Response) {
     
     // Update the trade offer status to rejected
     const updatedOffer = await storage.updateTradeOffer(Number(id), {
-      status: "rejected",
-      updatedAt: new Date()
+      status: "rejected"
     });
     
     res.json(updatedOffer);

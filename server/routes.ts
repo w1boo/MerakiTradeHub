@@ -1179,12 +1179,12 @@ app.get("/api/admin/transactions", ensureAdmin, async (req, res) => {
   app.post("/api/trade-offers/:id/reject", ensureAuthenticated, rejectTradeOffer);
 
   // Direct Trade API Routes (without using messages)
-  app.post("/api/direct-trade", ensureAuthenticated, createDirectTradeOffer);
-  app.get("/api/direct-trade", ensureAuthenticated, getDirectTradeOffers);
-  app.get("/api/direct-trade/:id", ensureAuthenticated, getDirectTradeOffer);
-  app.post("/api/direct-trade/:id/accept", ensureAuthenticated, acceptDirectTradeOffer);
-  app.post("/api/direct-trade/:id/confirm", ensureAuthenticated, confirmDirectTrade);
-  app.post("/api/direct-trade/:id/reject", ensureAuthenticated, rejectDirectTradeOffer);
+  app.post("/api/direct-trades", ensureAuthenticated, createDirectTradeOffer);
+  app.get("/api/direct-trades", ensureAuthenticated, getDirectTradeOffers);
+  app.get("/api/direct-trades/:id", ensureAuthenticated, getDirectTradeOffer);
+  app.post("/api/direct-trades/:id/accept", ensureAuthenticated, acceptDirectTradeOffer);
+  app.post("/api/direct-trades/:id/confirm", ensureAuthenticated, confirmDirectTrade);
+  app.post("/api/direct-trades/:id/reject", ensureAuthenticated, rejectDirectTradeOffer);
 
   const httpServer = createServer(app);
   return httpServer;
