@@ -37,19 +37,15 @@ export default function TradeOfferMessage({
   // Check if the current user is the sender
   const isSentByCurrentUser = message.senderId === currentUser?.id;
   
-  // Simple direct mutation to accept a trade offer
+  // Very simple direct mutation to accept a trade offer
   const acceptTradeMutation = useMutation({
     mutationFn: async () => {
-      console.log("Accepting trade offer for message:", message.id);
+      console.log("Accepting trade offer for message ID:", message.id);
       
-      // Simple role detection - if current user is the seller of the product, role is seller
-      // Otherwise role is buyer
-      const isSellerRole = currentUser?.id === tradeDetails?.sellerId;
-      const role = isSellerRole ? 'seller' : 'buyer';
+      // Check if current user is the seller of the product
+      const isSeller = currentUser?.id === tradeDetails?.sellerId;
       
-      console.log(`User ${currentUser?.id} is acting as ${role} for this trade`);
-      
-      // Direct API call with minimal parameters
+      // Simple API call - we don't need most of the parameters
       const response = await fetch('/api/trade/confirm', {
         method: 'POST',
         headers: {
@@ -57,7 +53,7 @@ export default function TradeOfferMessage({
         },
         body: JSON.stringify({
           messageId: message.id,
-          role: role
+          role: isSeller ? 'seller' : 'buyer'
         }),
       });
       
@@ -69,38 +65,37 @@ export default function TradeOfferMessage({
       return await response.json();
     },
     onSuccess: (data) => {
-      console.log("Trade acceptance response:", data);
+      console.log("Accept trade response:", data);
       
-      if (data.isFullyConfirmed) {
-        // Complete trade - both parties accepted
+      // If this was the seller accepting, it's done - redirect to transactions
+      if (data.tradeDone) {
         toast({
-          title: "Trade Completed!",
-          description: "The trade has been completed successfully. The product is now sold.",
+          title: "Trade Complete!",
+          description: "You have accepted this trade and the product is now sold.",
         });
         
-        // Force reload the page to show updated state
+        // Force redirect to transactions page after brief delay
         setTimeout(() => {
           window.location.href = '/transactions';
         }, 1000);
       } else {
-        // Partial trade - waiting for other party
+        // This was the buyer accepting - just show message and refresh
         toast({
-          title: "Trade Confirmation Sent",
-          description: "Waiting for the other party to confirm the trade.",
+          title: "Trade Offer Accepted",
+          description: "Waiting for the seller to accept your offer.",
         });
         
-        // Reload the current page to reflect changes
+        // Refresh the page to show updated state
         setTimeout(() => {
           window.location.reload();
         }, 1000);
       }
     },
     onError: (error: any) => {
-      console.error("Trade acceptance error:", error);
-      
+      console.error("Trade accept error:", error);
       toast({
-        title: "Error Processing Trade",
-        description: error.message || "Failed to process the trade. Please try again.",
+        title: "Error",
+        description: error.message || "Failed to accept trade. Please try again.",
         variant: "destructive",
       });
     }
