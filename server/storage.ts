@@ -115,7 +115,6 @@ export class MemStorage implements IStorage {
   // Initialize basic categories
   private seedCategories() {
     const categories = [
-      { name: "All Categories", icon: "ri-apps-line", color: "primary" },
       { name: "Electronics", icon: "ri-computer-line", color: "secondary" },
       { name: "Fashion", icon: "ri-t-shirt-line", color: "accent" },
       { name: "Books & Media", icon: "ri-book-open-line", color: "primary" }
