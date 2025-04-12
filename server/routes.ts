@@ -609,19 +609,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`Found product for trade: ${product.title} (ID: ${product.id})`);
       
+      // Check if product already sold
+      if (product.status === 'sold') {
+        console.error(`Product ${product.id} is already sold`);
+        return res.status(400).json({ error: "This product has already been sold" });
+      }
+      
       // Verify user's role and permissions
       if (role === 'buyer') {
-        // For simplicity, we consider the sender as buyer if not the seller
-        if (userId !== message.senderId && userId !== message.receiverId) {
-          console.error(`User ${userId} not authorized as buyer for message ${messageIdNum}`);
-          return res.status(403).json({ error: "Not authorized as buyer" });
+        // Determine if the current user is the buyer
+        const isBuyer = userId !== product.sellerId;
+        if (!isBuyer) {
+          console.error(`User ${userId} is not the buyer for this trade (they are the seller)`);
+          return res.status(403).json({ error: "You are the seller, not the buyer for this item" });
         }
       } else if (role === 'seller') {
         if (userId !== product.sellerId) {
-          console.error(`User ${userId} not authorized as seller for product ${product.id}`);
-          return res.status(403).json({ error: "Not authorized as seller" });
+          console.error(`User ${userId} is not the seller for product ${product.id}`);
+          return res.status(403).json({ error: "You are not the seller of this item" });
         }
       }
+      
+      // Determine correct buyer/seller IDs
+      const sellerId = product.sellerId;
+      const buyerId = userId === sellerId ? (message.senderId === sellerId ? message.receiverId : message.senderId) : userId;
+      
+      console.log(`Confirmed trade roles: Seller=${sellerId}, Buyer=${buyerId}`);
       
       // Update the message with confirmation
       const updates = role === 'buyer' 
@@ -642,53 +655,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`Trade confirmation status for message ${messageIdNum}: ${isFullyConfirmed ? 'Fully confirmed' : 'Partially confirmed'}`);
       
-      // If fully confirmed, create a transaction
+      // If fully confirmed, process the trade
       if (isFullyConfirmed) {
-        console.log(`Creating transaction for fully confirmed trade of product ${product.id}`);
+        console.log(`Processing fully confirmed trade for product ${product.id}`);
         
-        const buyerId = message.senderId === product.sellerId 
-          ? message.receiverId 
-          : message.senderId;
+        // Extract trade details
+        let tradeDetails;
+        let offerItemValue = 0;
+        let offerItemName = "Traded item";
         
-        // Calculate middleman fee - use the higher trade value as required
-        // Extract trade value from message if available
-        let tradeValue = product.tradeValue || 0;
-        
-        if (message.tradeDetails) {
+        if (updatedMessage.tradeDetails) {
           try {
-            // Parse trade details JSON if it's a string
-            const tradeDetailsObj = typeof message.tradeDetails === 'string' 
-              ? JSON.parse(message.tradeDetails) 
-              : message.tradeDetails;
+            // Parse trade details
+            tradeDetails = typeof updatedMessage.tradeDetails === 'string' 
+              ? JSON.parse(updatedMessage.tradeDetails) 
+              : updatedMessage.tradeDetails;
               
-            // If the trade message has a specified value, compare it with the product's trade value
-            if (tradeDetailsObj.price && typeof tradeDetailsObj.price === 'number') {
-              // Use the higher value for the trade transaction
-              tradeValue = Math.max(tradeValue, tradeDetailsObj.price);
-              console.log(`Using higher trade value for middleman fee: ${tradeValue}`);
+            // Get offered item value from trade details
+            if (tradeDetails.offerItemValue && typeof tradeDetails.offerItemValue === 'number') {
+              offerItemValue = tradeDetails.offerItemValue;
+            }
+            
+            // Get offered item name
+            if (tradeDetails.offerItemName) {
+              offerItemName = tradeDetails.offerItemName;
             }
           } catch (e) {
             console.error('Error parsing trade details:', e);
           }
         }
         
-        // Calculate middleman fee (10% of trade value)
-        const platformFee = tradeValue * 0.1;
-          
+        // Compare values and use the higher one for fee calculation
+        const productTradeValue = product.tradeValue || 0;
+        const highestValue = Math.max(productTradeValue, offerItemValue);
+        
+        console.log(`Trade value comparison: Product=${productTradeValue}, Offered=${offerItemValue}, Using=${highestValue}`);
+        
+        // Calculate middleman fee (10% of highest value)
+        const platformFee = Math.round(highestValue * 0.1);
+        
+        // Create transaction record for the trade
         const tradeTransaction = await storage.createTransaction({
           transactionId: `TRADE${Date.now()}`,
           productId: product.id,
           buyerId,
-          sellerId: product.sellerId,
-          amount: tradeValue,
+          sellerId,
+          amount: highestValue,
           platformFee,
           shipping: 0,
           status: 'completed',
           type: 'trade',
           tradeDetails: {
-            messageId,
-            tradeOffer: message.content,
-            tradeValue,
+            messageId: updatedMessage.id,
+            tradeOffer: updatedMessage.content,
+            productName: product.title,
+            productValue: productTradeValue,
+            offerItemName: offerItemName,
+            offerItemValue: offerItemValue,
+            highestValue: highestValue,
             platformFee
           },
           timeline: [
@@ -700,22 +724,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
             {
               status: 'completed',
               timestamp: new Date(),
-              note: `Trade completed successfully. Middleman fee: ${platformFee} VND (10%)`
+              note: `Trade completed successfully. Middleman fee: ${platformFee.toLocaleString('vi-VN')} ₫ (10% of ${highestValue.toLocaleString('vi-VN')} ₫)`
             }
           ]
         });
         
-        console.log(`Created trade transaction: ${tradeTransaction.id} for product ${product.id}`);
+        console.log(`Created trade transaction ${tradeTransaction.id} for product ${product.id}`);
         
-        // Update product status
-        await storage.updateProduct(product.id, { status: 'sold' });
+        // Mark the product as sold (status = 'sold')
+        await storage.updateProduct(product.id, { 
+          status: 'sold' 
+        });
         console.log(`Updated product ${product.id} status to 'sold'`);
       }
       
       console.log(`Trade confirmation successful for message ${messageIdNum}`);
       res.json({
         message: updatedMessage,
-        isFullyConfirmed
+        isFullyConfirmed,
+        productId: product.id
       });
       
     } catch (error) {

@@ -57,15 +57,8 @@ export default function ChatInterface({ conversationId }: ChatInterfaceProps) {
     refetchOnMount: true,
     refetchOnWindowFocus: true,
     retry: 3,
-    retryDelay: 1000,
-    onError: (err) => {
-      console.error("Error fetching conversation:", err);
-      toast({
-        title: "Error loading messages",
-        description: "There was a problem loading the conversation. Please try again.",
-        variant: "destructive"
-      });
-    }
+    staleTime: 1000, // Keep data fresh for at least 1 second
+    refetchInterval: 3000, // Poll every 3 seconds when the component is visible
   });
   
   // Fetch product data for trade messages
@@ -379,79 +372,83 @@ export default function ChatInterface({ conversationId }: ChatInterfaceProps) {
               {/* Conversation */}
               <div className="space-y-4 max-w-3xl mx-auto">
                 {isLoadingMessages ? (
+                  // Loading skeletons
                   Array(3).fill(0).map((_, i) => (
                     <div key={i} className={`flex items-end ${i % 2 === 0 ? '' : 'justify-end'}`}>
                       {i % 2 === 0 && <Skeleton className="h-8 w-8 rounded-full mr-2" />}
                       <Skeleton className={`h-20 w-64 rounded-2xl ${i % 2 === 0 ? 'rounded-bl-none' : 'rounded-br-none'}`} />
                     </div>
                   ))
-                ) : conversationData.messages && conversationData.messages.length > 0 ? (
-                  conversationData.messages.map((msg) => {
-                    // Check if current user is the sender
-                    const isFromCurrentUser = user ? msg.senderId === user.id : false;
-                    
-                    // If it's a trade message, render the trade offer component
-                    if (msg.isTrade === true && user) {
+                ) : (
+                  // Messages display - check if we have messages
+                  conversationData && conversationData.messages && conversationData.messages.length > 0 ? (
+                    // Render each message
+                    conversationData.messages.map((msg: any) => {
+                      const isFromCurrentUser = user ? msg.senderId === user.id : false;
+                      
+                      // Display trade message
+                      if (msg.isTrade === true && user) {
+                        return (
+                          <div key={msg.id} className="w-full">
+                            <TradeOfferMessage
+                              message={msg}
+                              currentUser={user}
+                              otherUser={conversationData.otherUser}
+                            />
+                          </div>
+                        );
+                      }
+                      
+                      // Regular message
                       return (
                         <div 
                           key={msg.id} 
-                          className={`flex flex-col ${isFromCurrentUser ? 'items-end' : 'items-start'} w-full`}
+                          className={`flex items-end ${isFromCurrentUser ? 'justify-end' : ''}`}
                         >
-                          <TradeOfferMessage
-                            message={msg}
-                            currentUser={user}
-                            otherUser={conversationData.otherUser}
-                          />
-                        </div>
-                      );
-                    }
-                    
-                    // Regular message
-                    return (
-                      <div 
-                        key={msg.id} 
-                        className={`flex items-end ${isFromCurrentUser ? 'justify-end' : ''}`}
-                      >
-                        {!isFromCurrentUser && (
-                          <Avatar className="h-8 w-8 mr-2">
-                            <AvatarImage src={conversationData.otherUser?.avatar} />
-                            <AvatarFallback>{getUserInitials(conversationData.otherUser)}</AvatarFallback>
-                          </Avatar>
-                        )}
-                        
-                        <div 
-                          className={`max-w-[70%] py-2 px-3 rounded-t-xl shadow-sm
-                            ${isFromCurrentUser 
-                              ? 'bg-primary text-white rounded-bl-xl rounded-br-none' 
-                              : 'bg-white text-neutral-900 rounded-br-xl rounded-bl-none'}`}
-                        >
-                          <p className="whitespace-pre-line">{msg.content}</p>
-                          {msg.images && msg.images.length > 0 && (
-                            <div className="mt-2 space-y-2">
-                              {msg.images.map((imageUrl, index) => (
-                                <img 
-                                  key={index} 
-                                  src={imageUrl} 
-                                  alt="Message attachment" 
-                                  className="max-w-full rounded-md"
-                                />
-                              ))}
-                            </div>
+                          {!isFromCurrentUser && (
+                            <Avatar className="h-8 w-8 mr-2">
+                              <AvatarImage src={conversationData.otherUser?.avatar || ""} />
+                              <AvatarFallback>{conversationData.otherUser ? getUserInitials(conversationData.otherUser) : "??"}</AvatarFallback>
+                            </Avatar>
                           )}
-                          <div className={`text-xs mt-1 ${isFromCurrentUser ? 'text-primary-foreground/70' : 'text-neutral-500'}`}>
-                            {format(new Date(msg.createdAt), 'h:mm a')}
+                          
+                          <div 
+                            className={`max-w-[70%] py-2 px-3 rounded-t-xl shadow-sm
+                              ${isFromCurrentUser 
+                                ? 'bg-primary text-white rounded-bl-xl rounded-br-none' 
+                                : 'bg-white text-neutral-900 rounded-br-xl rounded-bl-none'}`}
+                          >
+                            <p className="whitespace-pre-line">{msg.content}</p>
+                            {/* Show message images if available */}
+                            {msg.images && Array.isArray(msg.images) && msg.images.length > 0 && (
+                              <div className="mt-2 space-y-2">
+                                {msg.images.map((imageUrl: string, index: number) => (
+                                  <img 
+                                    key={index} 
+                                    src={imageUrl} 
+                                    alt="Message attachment" 
+                                    className="max-w-full rounded-md" 
+                                  />
+                                ))}
+                              </div>
+                            )}
+                            {/* Show message timestamp */}
+                            <div className={`text-xs mt-1 ${isFromCurrentUser ? 'text-primary-foreground/70' : 'text-neutral-500'}`}>
+                              {format(new Date(msg.createdAt), 'h:mm a')}
+                            </div>
                           </div>
                         </div>
+                      );
+                    })
+                  ) : (
+                    // No messages
+                    <div className="flex items-center justify-center h-48">
+                      <div className="text-center text-neutral-500">
+                        <p className="font-medium">No messages yet</p>
+                        <p className="text-sm mt-1">Start the conversation by sending a message</p>
                       </div>
-                    );
-                  })
-                ) : (
-                  <div className="flex items-center justify-center h-48">
-                    <div className="text-center text-neutral-500">
-                      <p className="font-medium">No messages yet</p>
-                      <p className="text-sm mt-1">Start the conversation by sending a message</p>
                     </div>
-                  </div>
+                  )
                 )}
                 <div ref={messagesEndRef} />
               </div>
