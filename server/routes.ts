@@ -172,6 +172,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (product.sellerId === buyerId) {
         return res.status(400).json({ error: "Cannot buy/trade your own product" });
       }
+      
+      // Check if product is already sold
+      if (product.status === 'sold') {
+        return res.status(400).json({ error: "This product has already been sold or traded" });
+      }
+      
+      // Check if there's already a transaction for this product
+      const userTransactions = await storage.getUserTransactions(buyerId);
+      const existingTransaction = userTransactions.find(
+        t => t.productId === product.id && (t.status === 'completed' || t.status === 'pending')
+      );
+      
+      if (existingTransaction) {
+        return res.status(400).json({ error: "A transaction for this product already exists" });
+      }
 
       // Calculate platform fee (10-20%)
       const feePercentage = req.body.type === 'trade' ? 0.1 : 0.15;

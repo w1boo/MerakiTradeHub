@@ -57,9 +57,6 @@ export default function DirectTradeAcceptPage() {
       setStatus('loading');
       setStatusMessage('Processing trade acceptance...');
       
-      // Completely rewritten trade acceptance logic without message dependencies
-      // This version manually creates a transaction directly
-      
       // First, fetch the product to ensure it exists
       const productResponse = await fetch(`/api/products/${productId}`, {
         method: 'GET',
@@ -75,7 +72,29 @@ export default function DirectTradeAcceptPage() {
       
       const product = await productResponse.json();
       
-      // Create transaction directly
+      // Check if product is already sold
+      if (product.status === 'sold') {
+        throw new Error('This product has already been traded or sold');
+      }
+      
+      // Check if a transaction already exists for this product
+      const existingTransactionsResponse = await fetch('/api/transactions', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      const transactions = await existingTransactionsResponse.json();
+      const existingTransaction = transactions.find(
+        (t: any) => t.productId === Number(productId) && (t.status === 'completed' || t.status === 'pending')
+      );
+      
+      if (existingTransaction) {
+        throw new Error('A transaction for this product already exists');
+      }
+      
+      // Create transaction only if one doesn't exist
       const response = await fetch(`/api/transactions`, {
         method: 'POST',
         headers: {
