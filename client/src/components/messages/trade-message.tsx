@@ -22,9 +22,10 @@ export default function TradeMessage({ message, product, currentUser, otherUser 
   const isBuyer = isFromCurrentUser || message.receiverId === currentUser.id;
   const isSeller = product.sellerId === currentUser.id;
   
-  // Use type guards and optional chaining to safely access trade confirmation fields
-  const hasConfirmedBuyer = typeof message.tradeConfirmedBuyer === 'boolean' ? message.tradeConfirmedBuyer : false;
-  const hasConfirmedSeller = typeof message.tradeConfirmedSeller === 'boolean' ? message.tradeConfirmedSeller : false;
+  // Use type assertion and optional chaining to safely access trade confirmation fields
+  const msg = message as any;
+  const hasConfirmedBuyer = typeof msg.tradeConfirmedBuyer === 'boolean' ? msg.tradeConfirmedBuyer : false;
+  const hasConfirmedSeller = typeof msg.tradeConfirmedSeller === 'boolean' ? msg.tradeConfirmedSeller : false;
   const isConfirmed = hasConfirmedBuyer && hasConfirmedSeller;
   
   const confirmTradeMutation = useMutation({

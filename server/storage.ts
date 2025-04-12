@@ -46,6 +46,8 @@ export interface IStorage {
   createMessage(message: InsertMessage): Promise<Message>;
   getMessages(conversationId: number): Promise<Message[]>;
   markMessageAsRead(id: number): Promise<Message | undefined>;
+  getMessage(id: number): Promise<Message | undefined>;
+  updateMessage(id: number, updates: Partial<Message>): Promise<Message | undefined>;
 
   // Conversation methods
   createConversation(conversation: InsertConversation): Promise<Conversation>;
@@ -65,7 +67,7 @@ export interface IStorage {
   updateWithdrawal(id: number, updates: Partial<Withdrawal>): Promise<Withdrawal | undefined>;
 
   // Session store
-  sessionStore: session.SessionStore;
+  sessionStore: any; // Use 'any' to avoid SessionStore type errors
 }
 
 export class MemStorage implements IStorage {

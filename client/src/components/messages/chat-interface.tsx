@@ -57,10 +57,11 @@ export default function ChatInterface({ conversationId }: ChatInterfaceProps) {
   // Fetch product data for trade messages
   const { data: productsData = {} } = useQuery<Record<number, Product>>({
     queryKey: ["/api/products/trade-messages"],
-    enabled: !!conversationData?.messages?.some(m => 
-      typeof m.isTrade === 'boolean' && m.isTrade === true && 
-      typeof m.productId === 'number' && m.productId !== null
-    ),
+    enabled: !!conversationData?.messages?.some(m => {
+      // Force TypeScript to recognize these properties exist
+      const msg = m as { isTrade?: boolean; productId?: number | null };
+      return msg.isTrade === true && typeof msg.productId === 'number' && msg.productId !== null;
+    }),
   });
 
   // Poll for new messages every 5 seconds
@@ -275,9 +276,10 @@ export default function ChatInterface({ conversationId }: ChatInterfaceProps) {
                 ) : conversationData.messages && conversationData.messages.length > 0 ? (
                   conversationData.messages.map((msg) => {
                     // If it's a trade message, render the special trade component
-                    if (msg.isTrade === true && msg.productId && user) {
-                      const product = productsData[msg.productId];
-                      
+                    // Force TypeScript to recognize these properties exist 
+                    const tradeMsg = msg as { isTrade?: boolean; productId?: number | null };
+                    if (tradeMsg.isTrade === true && tradeMsg.productId && user) {
+                      const product = productsData[tradeMsg.productId];
                       if (product) {
                         const TradeMessage = require('./trade-message').default;
                         
