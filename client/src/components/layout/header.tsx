@@ -118,7 +118,10 @@ export default function Header() {
                       <Link href="/transactions">Transactions</Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
-                      <Link href="/trade-offers">Trade Offers</Link>
+                      <Link href="/trade-offers">Message Trade Offers</Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/direct-trades">Direct Trade Offers</Link>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     {user.isAdmin && (

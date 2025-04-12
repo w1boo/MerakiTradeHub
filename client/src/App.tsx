@@ -11,6 +11,7 @@ import ProfilePage from "@/pages/profile-page";
 import ListingFormPage from "@/pages/listing-form-page";
 import TransactionsPage from "@/pages/transactions-page";
 import TradeOffersPage from "@/pages/trade-offers-page";
+import DirectTradesPage from "@/pages/direct-trades-page";
 import AdminPage from "@/pages/admin-page";
 import CategoryPage from "@/pages/category-page";
 import AcceptTradeHandler from "@/pages/accept-trade-handler";
@@ -32,6 +33,7 @@ function Router() {
       <ProtectedRoute path="/listing/edit/:id" component={ListingFormPage} />
       <ProtectedRoute path="/transactions" component={TransactionsPage} />
       <ProtectedRoute path="/trade-offers" component={TradeOffersPage} />
+      <ProtectedRoute path="/direct-trades" component={DirectTradesPage} />
       <ProtectedRoute path="/accept-trade-handler" component={AcceptTradeHandler} />
       <ProtectedRoute path="/trade-accept/:messageId" component={TradeAcceptButtonPage} />
       <AdminRoute path="/admin" component={AdminPage} />
