@@ -55,8 +55,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const limit = req.query.limit ? parseInt(req.query.limit as string) : 10;
       const products = await storage.getRecentProducts(limit);
       // Filter out sold products
-      const activeProducts = products.filter(product => product.status === 'active');
-      res.json(activeProducts);
+      const availableProducts = products.filter(product => product.status !== 'sold');
+      res.json(availableProducts);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch products" });
     }
