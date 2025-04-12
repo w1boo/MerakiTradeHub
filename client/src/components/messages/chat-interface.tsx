@@ -56,8 +56,24 @@ export default function ChatInterface({ conversationId }: ChatInterfaceProps) {
         queryClient.invalidateQueries({ queryKey: ["/api/conversations", selectedConversation] });
       }
       queryClient.invalidateQueries({ queryKey: ["/api/conversations"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error sending message",
+        description: error.message,
+        variant: "destructive"
+      });
     }
   });
+
+  const handleSendMessage = () => {
+    if (!message.trim() || !conversationData?.otherUser) return;
+
+    sendMessageMutation.mutate({
+      receiverId: conversationData.otherUser.id,
+      content: message
+    });
+  };
 
   // Scroll to bottom when messages change
   useEffect(() => {
