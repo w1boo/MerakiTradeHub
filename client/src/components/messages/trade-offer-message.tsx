@@ -41,12 +41,23 @@ export default function TradeOfferMessage({
   const acceptTradeMutation = useMutation({
     mutationFn: async () => {
       console.log("Confirming trade for message:", message.id);
+      
       // Determine if the current user is buyer or seller
-      const isSeller = message.productId && currentUser?.id === otherUser?.id;
-      const role = isSeller ? 'seller' : 'buyer';
+      // If the current user is the seller of the product, their role is "seller"
+      // Otherwise, they are the "buyer"
+      let role = 'buyer';
+      if (message.productId && tradeDetails?.productId) {
+        // Get the product ID directly from trade details
+        const productId = parseInt(tradeDetails.productId);
+        // Check if the current user is the product seller
+        if (currentUser?.id === tradeDetails.sellerId) {
+          role = 'seller';
+        }
+      }
       
-      console.log(`Current user role for trade: ${role}`);
+      console.log(`Current user role for trade: ${role}, Message ID: ${message.id}`);
       
+      // Make the API request to confirm the trade
       const response = await apiRequest(
         "POST", 
         "/api/trade/confirm",
@@ -66,9 +77,14 @@ export default function TradeOfferMessage({
     onSuccess: (data) => {
       if (data.isFullyConfirmed) {
         toast({
-          title: "Trade completed",
-          description: "The trade has been completed successfully. The product is now marked as sold.",
+          title: "Trade completed successfully!",
+          description: "The trade has been completed and the product has been marked as sold. A transaction has been created.",
         });
+        
+        // Redirect to transactions page after successful trade
+        setTimeout(() => {
+          window.location.href = '/transactions';
+        }, 1500);
       } else {
         toast({
           title: "Trade confirmation pending",
@@ -76,11 +92,12 @@ export default function TradeOfferMessage({
         });
       }
       
-      // Invalidate relevant queries to refresh the data
+      // Immediately invalidate all relevant queries to refresh the data
       queryClient.invalidateQueries({ queryKey: ["/api/conversations"] });
       queryClient.invalidateQueries({ queryKey: ["/api/products"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/transactions"] });
       
-      // Call the optional callback
+      // Call the optional callback if provided
       if (onAcceptTrade) {
         onAcceptTrade();
       }
