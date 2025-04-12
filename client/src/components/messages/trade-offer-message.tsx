@@ -40,21 +40,45 @@ export default function TradeOfferMessage({
   // Mutation to accept a trade offer
   const acceptTradeMutation = useMutation({
     mutationFn: async () => {
+      console.log("Confirming trade for message:", message.id);
+      // Determine if the current user is buyer or seller
+      const isSeller = message.productId && currentUser?.id === otherUser?.id;
+      const role = isSeller ? 'seller' : 'buyer';
+      
+      console.log(`Current user role for trade: ${role}`);
+      
       const response = await apiRequest(
         "POST", 
-        `/api/trade-offers/${message.id}/accept`,
-        {}
+        "/api/trade/confirm",
+        {
+          messageId: message.id,
+          role: role
+        }
       );
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to confirm trade");
+      }
+      
       return response.json();
     },
-    onSuccess: () => {
-      toast({
-        title: "Trade offer accepted",
-        description: "The trade offer has been accepted successfully.",
-      });
+    onSuccess: (data) => {
+      if (data.isFullyConfirmed) {
+        toast({
+          title: "Trade completed",
+          description: "The trade has been completed successfully. The product is now marked as sold.",
+        });
+      } else {
+        toast({
+          title: "Trade confirmation pending",
+          description: "Your confirmation has been received. Waiting for the other party to confirm.",
+        });
+      }
       
-      // Invalidate relevant queries
+      // Invalidate relevant queries to refresh the data
       queryClient.invalidateQueries({ queryKey: ["/api/conversations"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
       
       // Call the optional callback
       if (onAcceptTrade) {
@@ -62,8 +86,9 @@ export default function TradeOfferMessage({
       }
     },
     onError: (error: any) => {
+      console.error("Trade confirmation error:", error);
       toast({
-        title: "Failed to accept trade offer",
+        title: "Failed to confirm trade",
         description: error.message || "An error occurred. Please try again.",
         variant: "destructive",
       });

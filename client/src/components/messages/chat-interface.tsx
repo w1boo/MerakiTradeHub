@@ -54,6 +54,18 @@ export default function ChatInterface({ conversationId }: ChatInterfaceProps) {
   }>({
     queryKey: ["/api/conversations", selectedConversation],
     enabled: !!selectedConversation && !!user,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
+    retry: 3,
+    retryDelay: 1000,
+    onError: (err) => {
+      console.error("Error fetching conversation:", err);
+      toast({
+        title: "Error loading messages",
+        description: "There was a problem loading the conversation. Please try again.",
+        variant: "destructive"
+      });
+    }
   });
   
   // Fetch product data for trade messages

@@ -475,13 +475,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log(`Marked ${markedCount} messages as read for user ${userId}`);
       }
 
-      console.log(`Successfully fetched conversation ${conversationId} with ${messages.length} messages`);
+      // Additional debug information to troubleshoot message fetching
+      console.log(`Conversation structure: user1=${conversation.user1Id}, user2=${conversation.user2Id}`);
+      console.log(`Messages check: Total=${messages.length}, Sample=${messages.length > 0 ? JSON.stringify(messages[0]) : 'None'}`);
+      console.log(`Other user details: ${JSON.stringify(otherUser)}`);
+      
+      // Double-check and validate messages format
+      const validatedMessages = messages.map(message => {
+        // Ensure isTrade is a boolean
+        if (typeof message.isTrade !== 'boolean') {
+          return { ...message, isTrade: message.isTrade === true };
+        }
+        return message;
+      });
+
+      console.log(`Successfully fetched conversation ${conversationId} with ${validatedMessages.length} messages`);
       res.json({
         conversation,
-        messages,
+        messages: validatedMessages,
         otherUser
       });
     } catch (error) {
+      console.error("Error fetching conversation details:", error);
       res.status(500).json({ error: "Failed to fetch conversation" });
     }
   });
