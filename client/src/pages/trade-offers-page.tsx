@@ -31,8 +31,9 @@ export default function TradeOffersPage() {
 
   // Extract trade messages from conversations
   const tradeMessages = conversationsData?.flatMap((conversation) => {
-    // Check if conversation has messages
+    // Check if conversation has messages property
     if (!conversation.messages || !Array.isArray(conversation.messages)) {
+      console.log('No messages array found in conversation:', conversation.id);
       return [];
     }
 
@@ -41,6 +42,8 @@ export default function TradeOffersPage() {
       (msg: Message) => msg.isTrade === true
     );
   }) || [];
+  
+  console.log('Trade messages found:', tradeMessages.length);
 
   // Filter messages by sent vs received
   const receivedTradeOffers = tradeMessages.filter(

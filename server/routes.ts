@@ -376,6 +376,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             ...conversation,
             otherUser,
             lastMessage,
+            messages, // Include all messages
             unreadCount
           };
         } catch (err) {
