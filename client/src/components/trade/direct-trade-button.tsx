@@ -11,7 +11,7 @@ interface DirectTradeButtonProps {
   offerValue: number;
   offerItemName: string;
   offerItemDescription: string;
-  offerItemImage?: string;
+  offerItemImage?: string; // We'll convert this to offerItemImages array in the API
   onSuccess?: () => void;
 }
 

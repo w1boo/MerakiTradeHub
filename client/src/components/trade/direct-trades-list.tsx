@@ -25,7 +25,7 @@ interface DirectTradeOffer {
   status: string;
   offerItemName: string;
   offerItemDescription: string;
-  offerItemImage?: string;
+  offerItemImages?: string[];
   offerValue: number;
   createdAt: string;
   escrowAmount?: number;
@@ -216,10 +216,10 @@ export function DirectTradesList({ type, userId }: DirectTradesListProps) {
                 <h3 className="font-medium mb-1">Offered Item</h3>
                 <div className="bg-muted p-3 rounded-md">
                   <div className="flex items-start mb-2">
-                    {offer.offerItemImage ? (
+                    {offer.offerItemImages && offer.offerItemImages.length > 0 ? (
                       <div className="mr-3 flex-shrink-0">
                         <img 
-                          src={offer.offerItemImage} 
+                          src={offer.offerItemImages[0]} 
                           alt={offer.offerItemName} 
                           className="h-16 w-16 object-cover rounded-md"
                         />
