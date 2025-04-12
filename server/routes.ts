@@ -54,7 +54,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const limit = req.query.limit ? parseInt(req.query.limit as string) : 10;
       const products = await storage.getRecentProducts(limit);
-      res.json(products);
+      // Filter out sold products
+      const activeProducts = products.filter(product => product.status === 'active');
+      res.json(activeProducts);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch products" });
     }
@@ -255,7 +257,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ? [...transaction.timeline, timelineEntry]
           : [timelineEntry];
 
-        // Handle completion - move money from escrow to seller
+        // Handle completion - move money from escrow to seller and mark product as sold
         if (newStatus === 'completed') {
           const buyer = await storage.getUser(transaction.buyerId);
           const seller = await storage.getUser(transaction.sellerId);
@@ -286,6 +288,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 balance: seller.balance + sellerAmount
               });
             }
+
+            // Mark product as sold
+            await storage.updateProduct(transaction.productId, {
+              status: 'sold'
+            });
           }
         }
 
