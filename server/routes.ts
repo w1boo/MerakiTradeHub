@@ -17,6 +17,14 @@ import {
   confirmTrade,
   rejectTradeOffer 
 } from "./trade-api";
+import {
+  createDirectTradeOffer,
+  getDirectTradeOffers,
+  getDirectTradeOffer,
+  acceptDirectTradeOffer,
+  confirmDirectTrade,
+  rejectDirectTradeOffer
+} from "./direct-trade-api";
 import { randomBytes } from "crypto";
 
 function ensureAuthenticated(req: Request, res: Response, next: Function) {
@@ -1169,6 +1177,14 @@ app.get("/api/admin/transactions", ensureAdmin, async (req, res) => {
   app.post("/api/trade-offers/:id/accept", ensureAuthenticated, acceptTradeOffer);
   app.post("/api/trade-offers/:id/confirm", ensureAuthenticated, confirmTrade);
   app.post("/api/trade-offers/:id/reject", ensureAuthenticated, rejectTradeOffer);
+
+  // Direct Trade API Routes (without using messages)
+  app.post("/api/direct-trade", ensureAuthenticated, createDirectTradeOffer);
+  app.get("/api/direct-trade", ensureAuthenticated, getDirectTradeOffers);
+  app.get("/api/direct-trade/:id", ensureAuthenticated, getDirectTradeOffer);
+  app.post("/api/direct-trade/:id/accept", ensureAuthenticated, acceptDirectTradeOffer);
+  app.post("/api/direct-trade/:id/confirm", ensureAuthenticated, confirmDirectTrade);
+  app.post("/api/direct-trade/:id/reject", ensureAuthenticated, rejectDirectTradeOffer);
 
   const httpServer = createServer(app);
   return httpServer;
