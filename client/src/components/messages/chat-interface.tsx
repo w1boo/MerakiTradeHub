@@ -20,175 +20,235 @@ export default function ChatInterface({ conversationId }: ChatInterfaceProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const [message, setMessage] = useState("");
-  const [selectedConversation, setSelectedConversation] = useState<number | null>(conversationId || null);
+  const [selectedConversation, setSelectedConversation] = useState<number | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // Set selected conversation from props if provided
+  useEffect(() => {
+    if (conversationId) {
+      setSelectedConversation(conversationId);
+    }
+  }, [conversationId]);
+
   // Fetch conversations
-  const { data: conversations, isLoading: isLoadingConversations } = useQuery<Conversation[]>({
+  const { 
+    data: conversations = [], 
+    isLoading: isLoadingConversations,
+    refetch: refetchConversations
+  } = useQuery<Conversation[]>({
     queryKey: ["/api/conversations"],
     enabled: !!user,
   });
 
   // Fetch messages for selected conversation
-  const { data: conversationData, isLoading: isLoadingMessages } = useQuery<{
+  const { 
+    data: conversationData, 
+    isLoading: isLoadingMessages,
+    refetch: refetchMessages
+  } = useQuery<{
     conversation: Conversation;
     messages: Message[];
     otherUser: User;
   }>({
     queryKey: ["/api/conversations", selectedConversation],
-    enabled: !!selectedConversation,
+    enabled: !!selectedConversation && !!user,
   });
   
   // Fetch product data for trade messages
-  const { data: productsData } = useQuery<Record<number, Product>>({
+  const { data: productsData = {} } = useQuery<Record<number, Product>>({
     queryKey: ["/api/products/trade-messages"],
-    enabled: !!conversationData?.messages?.some(m => m.isTrade && m.productId),
+    enabled: !!conversationData?.messages?.some(m => 
+      typeof m.isTrade === 'boolean' && m.isTrade === true && 
+      typeof m.productId === 'number' && m.productId !== null
+    ),
   });
 
-  // Send message mutation
-  const sendMessageMutation = useMutation({
-    mutationFn: async (data: { receiverId: number, content: string }) => {
-      if (!data.content.trim()) return;
-      const res = await apiRequest("POST", "/api/messages", data);
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error);
-      return json;
-    },
-    onSuccess: () => {
-      // Clear message input
-      setMessage("");
-
-      // Invalidate queries to refresh data
-      if (selectedConversation) {
-        queryClient.invalidateQueries({ queryKey: ["/api/conversations", selectedConversation] });
+  // Poll for new messages every 5 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (user && selectedConversation) {
+        refetchMessages();
+        refetchConversations();
       }
-      queryClient.invalidateQueries({ queryKey: ["/api/conversations"] });
-    }
-  });
+    }, 5000);
+    
+    return () => clearInterval(interval);
+  }, [user, selectedConversation, refetchMessages, refetchConversations]);
 
-  // Scroll to bottom when messages change
+  // Scroll to bottom when new messages are loaded
   useEffect(() => {
     if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   }, [conversationData?.messages]);
 
-  const handleSendMessage = async () => {
-    if (!message.trim() || !conversationData?.otherUser) return;
-
-    try {
-      await sendMessageMutation.mutateAsync({
-        receiverId: conversationData.otherUser.id,
-        content: message.trim()
-      });
+  // Send message mutation
+  const sendMessageMutation = useMutation({
+    mutationFn: async (data: { content: string; receiverId: number; isTrade?: boolean; productId?: number; images?: string[] }) => {
+      const res = await apiRequest('POST', '/api/messages', data);
       
-      setMessage("");
-      queryClient.invalidateQueries({ queryKey: ["/api/conversations", selectedConversation] });
-      queryClient.invalidateQueries({ queryKey: ["/api/conversations"] });
-    } catch (error: any) {
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'Failed to send message');
+      }
+      
+      return await res.json();
+    },
+    onSuccess: () => {
+      setMessage('');
+      // Immediately refetch data
+      refetchMessages();
+      refetchConversations();
+    },
+    onError: (error: Error) => {
       toast({
-        title: "Failed to send message",
+        title: 'Error sending message',
         description: error.message,
-        variant: "destructive"
+        variant: 'destructive',
       });
-    }
+    },
+  });
+
+  // Send message handler
+  const handleSendMessage = () => {
+    if (!user || !conversationData || !message.trim()) return;
+    
+    sendMessageMutation.mutate({
+      content: message,
+      receiverId: conversationData.otherUser.id,
+    });
   };
 
+  // Handle enter key press
   const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
+    if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
     }
   };
 
+  // Get user initials for avatar
   const getUserInitials = (user?: User) => {
-    if (!user) return "U";
-    if (user.firstName && user.lastName) {
-      return `${user.firstName[0]}${user.lastName[0]}`;
-    } else if (user.username) {
-      return user.username.substring(0, 2).toUpperCase();
-    }
-    return "U";
+    if (!user) return '';
+    
+    const firstInitial = user.firstName?.[0] || user.username[0];
+    const lastInitial = user.lastName?.[0] || '';
+    
+    return `${firstInitial}${lastInitial}`.toUpperCase();
   };
 
-  const formatMessageTime = (date: Date) => {
-    return format(new Date(date), "h:mm a");
+  const getOtherUsername = (conversation: any) => {
+    return conversation?.otherUser?.username || "Unknown User";
+  };
+
+  // Format timestamp for display
+  const formatTimestamp = (date: Date) => {
+    const now = new Date();
+    const messageDate = new Date(date);
+    
+    // If same day, show time
+    if (
+      messageDate.getDate() === now.getDate() &&
+      messageDate.getMonth() === now.getMonth() &&
+      messageDate.getFullYear() === now.getFullYear()
+    ) {
+      return format(messageDate, 'h:mm a');
+    }
+    
+    // If within a week, show day name
+    const oneWeekAgo = new Date(now);
+    oneWeekAgo.setDate(now.getDate() - 7);
+    if (messageDate > oneWeekAgo) {
+      return format(messageDate, 'EEE');
+    }
+    
+    // Otherwise show date
+    return format(messageDate, 'MMM d');
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-xl w-full h-[80vh] flex flex-col">
-      <div className="p-4 border-b border-neutral-200 flex justify-between items-center">
-        <h2 className="text-xl font-semibold">Messages</h2>
-      </div>
-
-      <div className="flex-1 flex overflow-hidden">
-        {/* Contacts List */}
-        <div className="w-1/3 border-r border-neutral-200 overflow-y-auto">
-          <div className="p-3 border-b border-neutral-200">
-            <div className="relative">
-              <Input 
-                type="text" 
-                placeholder="Search messages..." 
-                className="w-full py-2 pl-8 pr-4 border border-neutral-200 rounded-lg"
-              />
-              <Icon icon="ri-search-line" className="absolute left-3 top-1/2 transform -translate-y-1/2 text-neutral-600" />
-            </div>
-          </div>
-
+    <div className="flex rounded-lg border border-neutral-200 overflow-hidden h-[70vh]">
+      {/* Sidebar with conversations */}
+      <div className="w-1/3 border-r border-neutral-200 bg-white">
+        <div className="p-4 border-b border-neutral-200">
+          <h3 className="font-medium text-lg">Messages</h3>
+          <p className="text-sm text-neutral-500">Chat with buyers and sellers</p>
+        </div>
+        
+        <ScrollArea className="h-[calc(70vh-88px)] p-3">
           {isLoadingConversations ? (
-            Array(3).fill(0).map((_, i) => (
-              <div key={i} className="p-3 border-b border-neutral-200">
-                <div className="flex items-center">
-                  <Skeleton className="h-10 w-10 rounded-full" />
-                  <div className="ml-3 flex-1">
-                    <Skeleton className="h-4 w-24" />
-                    <Skeleton className="h-3 w-40 mt-1" />
-                  </div>
+            // Loading skeletons
+            Array(5).fill(0).map((_, i) => (
+              <div key={i} className="flex items-center gap-3 p-3 mb-2 border-b border-neutral-100">
+                <Skeleton className="h-12 w-12 rounded-full" />
+                <div className="space-y-2 flex-1">
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-3 w-32" />
                 </div>
               </div>
             ))
-          ) : conversations && conversations.length > 0 ? (
-            conversations.map((conversation) => (
-              <div 
-                key={conversation.id}
-                className={`p-3 border-b border-neutral-200 hover:bg-neutral-100 cursor-pointer ${selectedConversation === conversation.id ? 'bg-primary/5' : ''}`}
-                onClick={() => setSelectedConversation(conversation.id)}
-              >
-                <div className="flex items-center">
-                  <div className="relative">
-                    <Avatar>
-                      <AvatarImage src={conversation.otherUser?.avatar} />
-                      <AvatarFallback>{getUserInitials(conversation.otherUser)}</AvatarFallback>
-                    </Avatar>
-                    <span className={`absolute bottom-0 right-0 w-3 h-3 ${conversation.otherUser?.isAdmin ? 'bg-status-success' : 'bg-neutral-300'} rounded-full border-2 border-white`}></span>
-                  </div>
-                  <div className="ml-3 flex-1">
+          ) : conversations.length > 0 ? (
+            conversations.map((conversation: any) => {
+              const otherUser = conversation.otherUser;
+              const lastMessage = conversation.lastMessage;
+              
+              return (
+                <div 
+                  key={conversation.id}
+                  className={`flex items-center gap-3 p-3 mb-2 border-b border-neutral-100 cursor-pointer transition
+                    ${selectedConversation === conversation.id 
+                      ? 'bg-neutral-100' 
+                      : 'hover:bg-neutral-50'}`}
+                  onClick={() => setSelectedConversation(conversation.id)}
+                >
+                  <Avatar>
+                    <AvatarImage src={otherUser?.avatar} />
+                    <AvatarFallback>{getUserInitials(otherUser)}</AvatarFallback>
+                  </Avatar>
+                  
+                  <div className="flex-1 overflow-hidden">
                     <div className="flex justify-between items-center">
-                      <h4 className="font-medium">{conversation.otherUser?.username}</h4>
+                      <span className={`font-medium ${conversation.unreadCount > 0 ? 'text-primary' : ''}`}>
+                        {getOtherUsername(conversation)}
+                      </span>
                       <span className="text-xs text-neutral-500">
-                        {conversation.updatedAt ? format(new Date(conversation.updatedAt), "h:mm a") : ""}
+                        {lastMessage ? formatTimestamp(new Date(lastMessage.createdAt)) : ''}
                       </span>
                     </div>
-                    <p className="text-sm text-neutral-600 truncate">
-                      {conversation.lastMessage?.content || "Start a conversation..."}
-                    </p>
+                    <div className="flex justify-between items-center">
+                      <p className={`text-sm truncate ${conversation.unreadCount > 0 ? 'font-medium' : 'text-neutral-600'}`}>
+                        {lastMessage?.content || 'No messages yet'}
+                      </p>
+                      {conversation.unreadCount > 0 && (
+                        <span className="bg-primary text-white text-xs font-medium rounded-full w-5 h-5 flex items-center justify-center">
+                          {conversation.unreadCount}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))
+              );
+            })
           ) : (
-            <div className="p-8 text-center text-neutral-500">
-              No conversations yet
+            <div className="p-6 text-center text-neutral-500">
+              <div className="mb-3">
+                <Icon icon="ri-chat-3-line text-3xl text-neutral-400" />
+              </div>
+              <p className="font-medium">No conversations yet</p>
+              <p className="text-sm mt-1">Messages from other users will appear here</p>
             </div>
           )}
-        </div>
-
+        </ScrollArea>
+      </div>
+      
+      {/* Chat area */}
+      <div className="flex-1 flex flex-col bg-neutral-50">
         {/* Chat Area */}
         {selectedConversation && conversationData ? (
           <div className="flex-1 flex flex-col">
-            <div className="p-3 border-b border-neutral-200 flex items-center">
+            <div className="p-4 border-b border-neutral-200 flex items-center bg-white">
               <div className="flex items-center">
-                <Avatar className="mr-3">
+                <Avatar className="mr-3 h-10 w-10">
                   <AvatarImage src={conversationData.otherUser?.avatar} />
                   <AvatarFallback>{getUserInitials(conversationData.otherUser)}</AvatarFallback>
                 </Avatar>
@@ -200,22 +260,11 @@ export default function ChatInterface({ conversationId }: ChatInterfaceProps) {
                   </div>
                 </div>
               </div>
-              <div className="ml-auto flex items-center space-x-2">
-                <Button variant="ghost" size="icon" title="Audio Call">
-                  <Icon icon="ri-phone-line text-neutral-600" />
-                </Button>
-                <Button variant="ghost" size="icon" title="Video Call">
-                  <Icon icon="ri-vidicon-line text-neutral-600" />
-                </Button>
-                <Button variant="ghost" size="icon" title="More Options">
-                  <Icon icon="ri-more-2-fill text-neutral-600" />
-                </Button>
-              </div>
             </div>
-
-            <ScrollArea className="flex-1 p-4">
+            
+            <ScrollArea className="flex-1 px-4 py-6">
               {/* Conversation */}
-              <div className="space-y-4">
+              <div className="space-y-4 max-w-3xl mx-auto">
                 {isLoadingMessages ? (
                   Array(3).fill(0).map((_, i) => (
                     <div key={i} className={`flex items-end ${i % 2 === 0 ? '' : 'justify-end'}`}>
@@ -224,80 +273,85 @@ export default function ChatInterface({ conversationId }: ChatInterfaceProps) {
                     </div>
                   ))
                 ) : conversationData.messages && conversationData.messages.length > 0 ? (
-                  conversationData.messages.map((message) => {
+                  conversationData.messages.map((msg) => {
                     // If it's a trade message, render the special trade component
-                    if (message.isTrade && message.productId && user) {
-                      const product = productsData?.[message.productId];
+                    if (msg.isTrade === true && msg.productId && user) {
+                      const product = productsData[msg.productId];
                       
                       if (product) {
-                        // Import dynamically to avoid circular dependencies
                         const TradeMessage = require('./trade-message').default;
                         
                         return (
                           <div 
-                            key={message.id} 
-                            className={`flex flex-col ${message.senderId === user?.id ? 'items-end' : 'items-start'} w-full`}
+                            key={msg.id} 
+                            className={`flex flex-col ${msg.senderId === user.id ? 'items-end' : 'items-start'} w-full`}
                           >
-                            <TradeMessage 
-                              message={message}
+                            <TradeMessage
+                              message={msg}
                               product={product}
                               currentUser={user}
                               otherUser={conversationData.otherUser}
                             />
-                            <span className={`text-xs text-neutral-500 mt-1 mx-2`}>
-                              {formatMessageTime(message.createdAt)}
-                            </span>
                           </div>
                         );
                       }
                     }
                     
-                    // Regular message rendering
+                    const isFromCurrentUser = user ? msg.senderId === user.id : false;
+                    
                     return (
                       <div 
-                        key={message.id} 
-                        className={`flex items-end ${message.senderId === user?.id ? 'justify-end' : ''}`}
+                        key={msg.id} 
+                        className={`flex items-end ${isFromCurrentUser ? 'justify-end' : ''}`}
                       >
-                        {message.senderId !== user?.id && (
-                          <Avatar className="w-8 h-8 mr-2">
+                        {!isFromCurrentUser && (
+                          <Avatar className="h-8 w-8 mr-2">
                             <AvatarImage src={conversationData.otherUser?.avatar} />
                             <AvatarFallback>{getUserInitials(conversationData.otherUser)}</AvatarFallback>
                           </Avatar>
                         )}
+                        
                         <div 
-                          className={`${
-                            message.senderId === user?.id 
-                              ? 'bg-primary text-white rounded-2xl rounded-br-none' 
-                              : 'bg-neutral-100 rounded-2xl rounded-bl-none'
-                          } py-2 px-4 max-w-[70%]`}
+                          className={`max-w-[70%] py-2 px-3 rounded-t-xl shadow-sm
+                            ${isFromCurrentUser 
+                              ? 'bg-primary text-white rounded-bl-xl rounded-br-none' 
+                              : 'bg-white text-neutral-900 rounded-br-xl rounded-bl-none'}`}
                         >
-                          <p className="text-sm">{message.content}</p>
-                          <span className={`text-xs ${message.senderId === user?.id ? 'text-white/70' : 'text-neutral-500'} mt-1 block`}>
-                            {formatMessageTime(message.createdAt)}
-                          </span>
+                          <p className="whitespace-pre-line">{msg.content}</p>
+                          {msg.images && msg.images.length > 0 && (
+                            <div className="mt-2 space-y-2">
+                              {msg.images.map((imageUrl, index) => (
+                                <img 
+                                  key={index} 
+                                  src={imageUrl} 
+                                  alt="Message attachment" 
+                                  className="max-w-full rounded-md"
+                                />
+                              ))}
+                            </div>
+                          )}
+                          <div className={`text-xs mt-1 ${isFromCurrentUser ? 'text-primary-foreground/70' : 'text-neutral-500'}`}>
+                            {format(new Date(msg.createdAt), 'h:mm a')}
+                          </div>
                         </div>
                       </div>
                     );
                   })
                 ) : (
-                  <div className="flex flex-col items-center justify-center h-full text-neutral-500 py-8">
-                    <Icon icon="ri-chat-3-line text-4xl mb-2" />
-                    <p>No messages yet. Start a conversation!</p>
+                  <div className="flex items-center justify-center h-48">
+                    <div className="text-center text-neutral-500">
+                      <p className="font-medium">No messages yet</p>
+                      <p className="text-sm mt-1">Start the conversation by sending a message</p>
+                    </div>
                   </div>
                 )}
                 <div ref={messagesEndRef} />
               </div>
             </ScrollArea>
-
-            <div className="p-3 border-t border-neutral-200">
-              <div className="flex items-end">
-                <Button variant="ghost" size="icon" className="text-neutral-600 hover:text-primary">
-                  <Icon icon="ri-image-line text-xl" />
-                </Button>
-                <Button variant="ghost" size="icon" className="text-neutral-600 hover:text-primary">
-                  <Icon icon="ri-attachment-2 text-xl" />
-                </Button>
-                <div className="flex-1 mx-2">
+            
+            <div className="p-4 border-t border-neutral-200 bg-white">
+              <div className="flex items-end max-w-3xl mx-auto">
+                <div className="flex-1">
                   <Input
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
@@ -307,7 +361,7 @@ export default function ChatInterface({ conversationId }: ChatInterfaceProps) {
                   />
                 </div>
                 <Button 
-                  className="px-4 py-2 text-white bg-primary rounded-full flex items-center gap-2"
+                  className="ml-2 px-4 py-2 text-white bg-primary rounded-full flex items-center gap-2"
                   disabled={!message.trim() || sendMessageMutation.isPending}
                   onClick={handleSendMessage}
                 >
@@ -328,9 +382,13 @@ export default function ChatInterface({ conversationId }: ChatInterfaceProps) {
           </div>
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center p-4 text-neutral-500">
-            <Icon icon="ri-chat-smile-2-line text-6xl mb-4" />
-            <h3 className="text-lg font-medium mb-2">Select a conversation</h3>
-            <p className="text-center">Choose a conversation from the list or start a new one</p>
+            <div className="p-6 rounded-full bg-neutral-100 mb-4">
+              <Icon icon="ri-chat-smile-2-line text-5xl text-neutral-400" />
+            </div>
+            <h3 className="text-lg font-medium mb-2">Your messages</h3>
+            <p className="text-center text-sm max-w-md">
+              Select a conversation from the list to view messages or start a new conversation by messaging a seller from a product page
+            </p>
           </div>
         )}
       </div>

@@ -524,33 +524,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const senderId = req.user!.id;
       const { receiverId, content, images, isTrade, productId } = req.body;
 
+      // Validations
+      if (!receiverId) {
+        return res.status(400).json({ error: "Receiver ID is required" });
+      }
+
+      if (!content || content.trim() === '') {
+        return res.status(400).json({ error: "Message content cannot be empty" });
+      }
+
       // Find or create conversation
       let conversation = await storage.getConversationByUsers(senderId, receiverId);
-
+      
       if (!conversation) {
+        // Make sure both user IDs exist before creating a conversation
+        const sender = await storage.getUser(senderId);
+        const receiver = await storage.getUser(receiverId);
+        
+        if (!sender || !receiver) {
+          return res.status(404).json({ error: "One or both users not found" });
+        }
+        
         conversation = await storage.createConversation({
           user1Id: senderId,
           user2Id: receiverId,
           lastMessageId: null
         });
+        
+        console.log(`Created new conversation between users ${senderId} and ${receiverId} with ID: ${conversation.id}`);
+      } else {
+        console.log(`Found existing conversation with ID: ${conversation.id}`);
       }
 
       // Create message
-      const messageData = insertMessageSchema.parse({
+      const messageData = {
         senderId,
         receiverId,
         content,
-        images,
+        images: images || null,
         isTrade: isTrade || false,
         productId: productId || null,
         tradeConfirmedBuyer: false,
         tradeConfirmedSeller: false
-      });
+      };
 
       // Create the message
       const message = await storage.createMessage(messageData);
+      console.log(`Created new message with ID: ${message.id} in conversation ${conversation.id}`);
 
-      // Update conversation with last message ID only
+      // Update conversation with last message ID and timestamp
       await storage.updateConversation(conversation.id, {
         lastMessageId: message.id,
         updatedAt: new Date()

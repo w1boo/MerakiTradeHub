@@ -409,11 +409,33 @@ export class MemStorage implements IStorage {
   }
 
   async getConversationByUsers(user1Id: number, user2Id: number): Promise<Conversation | undefined> {
-    return Array.from(this.conversations.values())
-      .find(conversation => 
-        (conversation.user1Id === user1Id && conversation.user2Id === user2Id) ||
-        (conversation.user1Id === user2Id && conversation.user2Id === user1Id)
-      );
+    console.log(`Looking for conversation between users ${user1Id} and ${user2Id}`);
+    
+    // Make sure we're working with numbers
+    const u1 = Number(user1Id);
+    const u2 = Number(user2Id);
+    
+    if (isNaN(u1) || isNaN(u2)) {
+      console.error(`Invalid user IDs: ${user1Id}, ${user2Id}`);
+      return undefined;
+    }
+    
+    const allConversations = Array.from(this.conversations.values());
+    console.log(`Total conversations: ${allConversations.length}`);
+    
+    // Find conversation regardless of which user is user1 or user2
+    const conversation = allConversations.find(c => 
+      (c.user1Id === u1 && c.user2Id === u2) ||
+      (c.user1Id === u2 && c.user2Id === u1)
+    );
+    
+    if (conversation) {
+      console.log(`Found conversation: ${JSON.stringify(conversation)}`);
+    } else {
+      console.log(`No conversation found between users ${u1} and ${u2}`);
+    }
+    
+    return conversation;
   }
 
   async updateConversation(id: number, updates: Partial<Conversation>): Promise<Conversation | undefined> {
