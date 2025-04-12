@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/hooks/use-toast";
 import {
   Form,
   FormControl,
@@ -39,8 +40,9 @@ interface TradeOfferFormProps {
 export function TradeOfferForm({ productId, sellerId, productTitle, onSuccess }: TradeOfferFormProps) {
   const [step, setStep] = useState<"form" | "confirm">("form");
   const [formData, setFormData] = useState<FormValues | null>(null);
-  const [uploadedImage, setUploadedImage] = useState<string | null>(null);
+  const [selectedImages, setSelectedImages] = useState<string[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const { toast } = useToast();
   
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -52,42 +54,154 @@ export function TradeOfferForm({ productId, sellerId, productTitle, onSuccess }:
     },
   });
   
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  // File input reference
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Handle drag events
+  const [isDragging, setIsDragging] = useState(false);
+  
+  // Handle drag and drop events
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+  
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+  
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+  
+  // Handle file drop
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
     
-    setIsUploading(true);
-    
-    try {
-      // Create a FormData object to send the file
-      const formData = new FormData();
-      formData.append("image", file);
-      
-      // Send the image to the server
-      const response = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
-      
-      if (!response.ok) {
-        throw new Error("Failed to upload image");
-      }
-      
-      const data = await response.json();
-      const imageUrl = data.url;
-      
-      // Set the uploaded image URL
-      setUploadedImage(imageUrl);
-      form.setValue("offerItemImage", imageUrl);
-    } catch (error) {
-      console.error("Error uploading image:", error);
-    } finally {
-      setIsUploading(false);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      handleFiles(e.dataTransfer.files);
     }
   };
   
+  // Handle file input change
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      handleFiles(e.target.files);
+    }
+  };
+  
+  // Compress image before processing
+  const compressImage = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          // Create canvas
+          const canvas = document.createElement('canvas');
+          
+          // Calculate new dimensions (max width/height 1200px)
+          let width = img.width;
+          let height = img.height;
+          const maxDimension = 1200;
+          
+          if (width > maxDimension || height > maxDimension) {
+            if (width > height) {
+              height = Math.round((height * maxDimension) / width);
+              width = maxDimension;
+            } else {
+              width = Math.round((width * maxDimension) / height);
+              height = maxDimension;
+            }
+          }
+          
+          // Resize image
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          
+          if (!ctx) {
+            reject(new Error('Could not get canvas context'));
+            return;
+          }
+          
+          ctx.drawImage(img, 0, 0, width, height);
+          
+          // Convert to data URL with reduced quality
+          const quality = 0.7; // 70% quality
+          const dataUrl = canvas.toDataURL('image/jpeg', quality);
+          
+          resolve(dataUrl);
+        };
+        
+        img.onerror = () => {
+          reject(new Error('Failed to load image'));
+        };
+        
+        if (event.target && event.target.result) {
+          img.src = event.target.result as string;
+        } else {
+          reject(new Error('Failed to read file'));
+        }
+      };
+      
+      reader.onerror = () => {
+        reject(new Error('Failed to read file'));
+      };
+      
+      reader.readAsDataURL(file);
+    });
+  };
+  
+  // Process the files
+  const handleFiles = (files: FileList) => {
+    setIsUploading(true);
+    
+    Array.from(files).forEach(file => {
+      // Only process image files
+      if (!file.type.match('image.*')) {
+        toast({
+          title: "Invalid file type",
+          description: `${file.name} is not an image file.`,
+          variant: "destructive",
+        });
+        setIsUploading(false);
+        return;
+      }
+      
+      // Compress and process the image
+      compressImage(file)
+        .then(dataUrl => {
+          if (!selectedImages.includes(dataUrl)) {
+            // Only keep one image for trade offers
+            const newImages = [dataUrl];
+            setSelectedImages(newImages);
+            
+            // Set the image URL in the form
+            form.setValue('offerItemImage', dataUrl);
+          }
+          setIsUploading(false);
+        })
+        .catch(error => {
+          toast({
+            title: "Image processing failed",
+            description: error.message,
+            variant: "destructive",
+          });
+          setIsUploading(false);
+        });
+    });
+  };
+  
   const removeImage = () => {
-    setUploadedImage(null);
+    setSelectedImages([]);
     form.setValue("offerItemImage", "");
   };
   
@@ -149,7 +263,7 @@ export function TradeOfferForm({ productId, sellerId, productTitle, onSuccess }:
               form.reset();
               setStep("form");
               setFormData(null);
-              setUploadedImage(null);
+              setSelectedImages([]);
               if (onSuccess) onSuccess();
             }}
           />
@@ -226,30 +340,45 @@ export function TradeOfferForm({ productId, sellerId, productTitle, onSuccess }:
                   <FormLabel>Item Image</FormLabel>
                   <FormControl>
                     <div className="space-y-2">
-                      {!uploadedImage ? (
-                        <div className="flex flex-col items-center justify-center border-2 border-dashed border-muted-foreground/25 rounded-md p-4 hover:border-primary/50 cursor-pointer transition-colors">
-                          <input 
-                            type="file" 
-                            id="image-upload" 
-                            accept="image/*" 
-                            className="hidden" 
-                            onChange={handleImageUpload}
+                      {selectedImages.length === 0 ? (
+                        <div
+                          className={`flex flex-col items-center justify-center border-2 border-dashed rounded-md p-8 transition-colors ${
+                            isDragging
+                              ? "border-primary bg-primary/5"
+                              : "border-muted-foreground/25 hover:border-primary/50"
+                          }`}
+                          onDragEnter={handleDragEnter}
+                          onDragOver={handleDragOver}
+                          onDragLeave={handleDragLeave}
+                          onDrop={handleDrop}
+                        >
+                          <input
+                            type="file"
+                            id="image-upload"
+                            ref={fileInputRef}
+                            accept="image/*"
+                            className="hidden"
+                            onChange={handleFileInputChange}
                             disabled={isUploading}
                           />
-                          <label 
-                            htmlFor="image-upload" 
+                          <label
+                            htmlFor="image-upload"
                             className="flex flex-col items-center justify-center w-full h-full cursor-pointer"
                           >
                             {isUploading ? (
                               <div className="flex flex-col items-center justify-center py-4">
                                 <Loader2 className="h-8 w-8 animate-spin text-primary mb-2" />
-                                <p className="text-sm text-muted-foreground">Uploading image...</p>
+                                <p className="text-sm text-muted-foreground">Processing image...</p>
                               </div>
                             ) : (
                               <>
-                                <Upload className="h-8 w-8 text-muted-foreground mb-2" />
-                                <p className="text-sm text-muted-foreground">Click to upload an image of your item</p>
-                                <p className="text-xs text-muted-foreground/70 mt-1">PNG, JPG or WEBP up to 5MB</p>
+                                <Upload className="h-10 w-10 text-muted-foreground mb-2" />
+                                <p className="text-sm text-center font-medium">
+                                  Drag & drop or click to upload
+                                </p>
+                                <p className="text-xs text-center text-muted-foreground mt-1">
+                                  JPG, PNG or WEBP (max. 5MB)
+                                </p>
                               </>
                             )}
                           </label>
@@ -257,7 +386,7 @@ export function TradeOfferForm({ productId, sellerId, productTitle, onSuccess }:
                       ) : (
                         <div className="relative aspect-video w-full border rounded-md overflow-hidden">
                           <img 
-                            src={uploadedImage} 
+                            src={selectedImages[0]} 
                             alt="Item preview" 
                             className="object-cover w-full h-full"
                           />
