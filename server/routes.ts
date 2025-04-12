@@ -448,19 +448,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const depositData = insertDepositSchema.parse({
         ...req.body,
         userId,
-        status: 'completed' // Auto-approve for demo purposes
+        status: 'pending' // Changed to pending - requires admin approval
       });
 
       const deposit = await storage.createDeposit(depositData);
 
-      // Add to user balance
-      const user = await storage.getUser(userId);
-      if (user) {
-        await storage.updateUser(userId, {
-          balance: user.balance + deposit.amount
-        });
-      }
-
+      // Don't automatically add to user balance - admin will need to approve
+      
       res.status(201).json(deposit);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -537,6 +531,89 @@ app.post("/api/admin/users/:id/balance", ensureAdmin, async (req, res) => {
     res.json(updatedUser);
   } catch (error) {
     res.status(500).json({ error: "Failed to update user balance" });
+  }
+});
+
+// Admin route to get all deposits
+app.get("/api/admin/deposits", ensureAdmin, async (req, res) => {
+  try {
+    // For simplicity, fetch deposits with IDs 1-100
+    const deposits = [];
+    for (let i = 1; i <= 100; i++) {
+      const deposit = await storage.getDeposit(i);
+      if (deposit) {
+        // Fetch username for the deposit
+        const user = await storage.getUser(deposit.userId);
+        deposits.push({ 
+          ...deposit, 
+          username: user?.username || 'Unknown'
+        });
+      }
+    }
+    
+    // Sort by newest first
+    deposits.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    res.json(deposits);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch deposits" });
+  }
+});
+
+// Admin route to approve a deposit
+app.post("/api/admin/deposits/:id/approve", ensureAdmin, async (req, res) => {
+  try {
+    const depositId = parseInt(req.params.id);
+    const deposit = await storage.getDeposit(depositId);
+    
+    if (!deposit) {
+      return res.status(404).json({ error: "Deposit not found" });
+    }
+    
+    if (deposit.status !== 'pending') {
+      return res.status(400).json({ error: "Deposit is not in pending status" });
+    }
+    
+    // Update deposit status
+    const updatedDeposit = await storage.updateDeposit(depositId, {
+      status: 'completed'
+    });
+    
+    // Add to user balance
+    const user = await storage.getUser(deposit.userId);
+    if (user) {
+      await storage.updateUser(deposit.userId, {
+        balance: user.balance + deposit.amount
+      });
+    }
+    
+    res.json(updatedDeposit);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to approve deposit" });
+  }
+});
+
+// Admin route to reject a deposit
+app.post("/api/admin/deposits/:id/reject", ensureAdmin, async (req, res) => {
+  try {
+    const depositId = parseInt(req.params.id);
+    const deposit = await storage.getDeposit(depositId);
+    
+    if (!deposit) {
+      return res.status(404).json({ error: "Deposit not found" });
+    }
+    
+    if (deposit.status !== 'pending') {
+      return res.status(400).json({ error: "Deposit is not in pending status" });
+    }
+    
+    // Update deposit status
+    const updatedDeposit = await storage.updateDeposit(depositId, {
+      status: 'rejected'
+    });
+    
+    res.json(updatedDeposit);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to reject deposit" });
   }
 });
 

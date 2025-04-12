@@ -56,6 +56,7 @@ export interface IStorage {
 
   // Financial methods
   createDeposit(deposit: InsertDeposit): Promise<Deposit>;
+  getDeposit(id: number): Promise<Deposit | undefined>;
   getUserDeposits(userId: number): Promise<Deposit[]>;
   updateDeposit(id: number, updates: Partial<Deposit>): Promise<Deposit | undefined>;
 
@@ -422,6 +423,10 @@ export class MemStorage implements IStorage {
     };
     this.deposits.set(id, newDeposit);
     return newDeposit;
+  }
+  
+  async getDeposit(id: number): Promise<Deposit | undefined> {
+    return this.deposits.get(id);
   }
 
   async getUserDeposits(userId: number): Promise<Deposit[]> {
