@@ -66,27 +66,25 @@ export default function ChatInterface({ conversationId }: ChatInterfaceProps) {
     }
   }, [conversationData?.messages]);
 
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     if (!message.trim() || !conversationData?.otherUser) return;
 
-    sendMessageMutation.mutate({
-      receiverId: conversationData.otherUser.id,
-      content: message.trim()
-    }, {
-      onSuccess: () => {
-        setMessage("");
-        // Refresh the conversation data
-        queryClient.invalidateQueries({ queryKey: ["/api/conversations", selectedConversation] });
-        queryClient.invalidateQueries({ queryKey: ["/api/conversations"] });
-      },
-      onError: (error) => {
-        toast({
-          title: "Failed to send message",
-          description: error.message,
-          variant: "destructive"
-        });
-      }
-    });
+    try {
+      await sendMessageMutation.mutateAsync({
+        receiverId: conversationData.otherUser.id,
+        content: message.trim()
+      });
+      
+      setMessage("");
+      queryClient.invalidateQueries({ queryKey: ["/api/conversations", selectedConversation] });
+      queryClient.invalidateQueries({ queryKey: ["/api/conversations"] });
+    } catch (error: any) {
+      toast({
+        title: "Failed to send message",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
