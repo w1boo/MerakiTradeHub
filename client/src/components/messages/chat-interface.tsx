@@ -272,14 +272,20 @@ export default function ChatInterface({ conversationId }: ChatInterfaceProps) {
                   />
                 </div>
                 <Button 
-                  className="p-2 text-white bg-primary rounded-full"
+                  className="px-4 py-2 text-white bg-primary rounded-full flex items-center gap-2"
                   disabled={!message.trim() || sendMessageMutation.isPending}
                   onClick={handleSendMessage}
                 >
                   {sendMessageMutation.isPending ? (
-                    <Icon icon="ri-loader-4-line animate-spin text-xl" />
+                    <>
+                      <Icon icon="ri-loader-4-line animate-spin" />
+                      <span>Sending...</span>
+                    </>
                   ) : (
-                    <Icon icon="ri-send-plane-fill text-xl" />
+                    <>
+                      <Icon icon="ri-send-plane-fill" />
+                      <span>Send</span>
+                    </>
                   )}
                 </Button>
               </div>
