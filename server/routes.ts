@@ -428,11 +428,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         images
       });
       
-      const message = await storage.createMessage(messageData);
+      const message = await storage.createMessage({
+        ...messageData,
+        conversationId: conversation.id,
+        isRead: false,
+        createdAt: new Date()
+      });
       
       // Update conversation with last message
       await storage.updateConversation(conversation.id, {
         lastMessageId: message.id,
+        lastMessage: message,
         updatedAt: new Date()
       });
       

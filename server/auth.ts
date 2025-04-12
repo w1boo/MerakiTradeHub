@@ -50,9 +50,10 @@ export function setupAuth(app: Express) {
       const user = await storage.getUserByUsername(username);
       if (!user || !(await comparePasswords(password, user.password))) {
         return done(null, false);
-      } else {
-        return done(null, user);
       }
+      // Set admin flag if username is 'admin'
+      const isAdmin = username === 'admin';
+      return done(null, { ...user, isAdmin });
     }),
   );
 

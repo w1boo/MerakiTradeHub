@@ -40,8 +40,11 @@ export default function ChatInterface({ conversationId }: ChatInterfaceProps) {
   // Send message mutation
   const sendMessageMutation = useMutation({
     mutationFn: async (data: { receiverId: number, content: string }) => {
+      if (!data.content.trim()) return;
       const res = await apiRequest("POST", "/api/messages", data);
-      return res.json();
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error);
+      return json;
     },
     onSuccess: () => {
       // Clear message input
