@@ -398,8 +398,11 @@ export default function ProductDetailPage() {
             {/* Product Details */}
             <div>
               <div className="bg-white p-6 rounded-lg shadow-sm mb-4">
-                <div className="mb-4">
-                  {getProductTypeBadge()}
+                <div className="flex justify-between mb-4">
+                  <div>{getProductTypeBadge()}</div>
+                  <div className="bg-green-50 text-green-700 px-3 py-1 rounded-full border border-green-200 font-mono text-sm">
+                    ID: {product.id}
+                  </div>
                 </div>
                 
                 <h1 className="text-2xl md:text-3xl font-semibold mb-2">{product.title}</h1>
@@ -463,15 +466,29 @@ export default function ProductDetailPage() {
                   )}
                   
                   {product.allowTrade && (
-                    <Button 
-                      variant="outline" 
-                      className="flex-1 border-primary text-primary" 
-                      onClick={handleTradeOffer}
-                      disabled={user?.id === product.sellerId}
-                    >
-                      <Icon icon="ri-exchange-line mr-2" />
-                      Offer Trade
-                    </Button>
+                    <div className="flex-1 flex gap-2">
+                      <Button 
+                        variant="outline" 
+                        className="flex-1 border-primary text-primary" 
+                        onClick={handleTradeOffer}
+                        disabled={user?.id === product.sellerId}
+                      >
+                        <Icon icon="ri-exchange-line mr-2" />
+                        Offer Trade
+                      </Button>
+                      
+                      <Button
+                        variant="outline"
+                        className="flex-1 border-green-500 text-green-600 bg-green-50 hover:bg-green-100 hover:text-green-700"
+                        disabled={user?.id === product.sellerId}
+                        asChild
+                      >
+                        <a href={`/direct-trade-accept?productId=${product.id}`}>
+                          <Icon icon="ri-rocket-line mr-2" />
+                          Direct Trade
+                        </a>
+                      </Button>
+                    </div>
                   )}
                   
                   <Button 

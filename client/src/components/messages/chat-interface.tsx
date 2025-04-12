@@ -386,15 +386,29 @@ export default function ChatInterface({ conversationId }: ChatInterfaceProps) {
                     conversationData.messages.map((msg: any) => {
                       const isFromCurrentUser = user ? msg.senderId === user.id : false;
                       
-                      // Display trade message
+                      // Display trade message notice - we've now replaced this with Direct Trade
                       if (msg.isTrade === true && user) {
                         return (
-                          <div key={msg.id} className="w-full">
-                            <TradeOfferMessage
-                              message={msg}
-                              currentUser={user}
-                              otherUser={conversationData.otherUser}
-                            />
+                          <div key={msg.id} className="w-full mb-3">
+                            <div className="bg-green-50 border border-green-200 rounded-lg p-3 shadow-sm">
+                              <div className="flex flex-col gap-2">
+                                <div className="flex gap-2 items-center">
+                                  <div className="p-1 bg-green-100 text-green-700 rounded-full">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-info"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+                                  </div>
+                                  <div className="text-sm font-medium text-green-800">Old Trade Message</div>
+                                </div>
+                                <p className="text-sm text-green-700">We've upgraded to a new Direct Trade system. Please use Direct Trade from the product page instead.</p>
+                                <div className="mt-1">
+                                  <a 
+                                    href="/direct-trade-accept" 
+                                    className="inline-flex items-center justify-center rounded-md text-xs font-medium bg-green-600 text-white hover:bg-green-700 h-7 px-3 py-1"
+                                  >
+                                    Try Direct Trade
+                                  </a>
+                                </div>
+                              </div>
+                            </div>
                           </div>
                         );
                       }
