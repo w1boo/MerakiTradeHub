@@ -14,6 +14,7 @@ import TradeOffersPage from "@/pages/trade-offers-page";
 import AdminPage from "@/pages/admin-page";
 import CategoryPage from "@/pages/category-page";
 import AcceptTradeHandler from "@/pages/accept-trade-handler";
+import TradeAcceptButtonPage from "@/pages/trade-accept-button-page";
 import { AuthProvider } from "@/hooks/use-auth";
 import { ProtectedRoute, AdminRoute } from "./lib/protected-route";
 
@@ -32,6 +33,7 @@ function Router() {
       <ProtectedRoute path="/transactions" component={TransactionsPage} />
       <ProtectedRoute path="/trade-offers" component={TradeOffersPage} />
       <ProtectedRoute path="/accept-trade-handler" component={AcceptTradeHandler} />
+      <ProtectedRoute path="/trade-accept/:messageId" component={TradeAcceptButtonPage} />
       <AdminRoute path="/admin" component={AdminPage} />
       <Route component={NotFound} />
     </Switch>
