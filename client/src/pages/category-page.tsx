@@ -6,7 +6,9 @@ import Footer from "@/components/layout/footer";
 import MobileNav from "@/components/layout/mobile-nav";
 import ProductCard from "@/components/marketplace/product-card";
 import { Skeleton } from "@/components/ui/skeleton";
-import EmptyState from "@/components/ui/empty-state";
+import { Link } from "wouter";
+import { Button } from "@/components/ui/button";
+import { Icon } from "@/components/ui/theme";
 
 export default function CategoryPage() {
   const params = useParams<{ id: string }>();
@@ -82,13 +84,16 @@ export default function CategoryPage() {
                   ))}
                 </div>
               ) : (
-                <EmptyState
-                  icon="ri-shopping-bag-line"
-                  title="No products found"
-                  description="There are no products in this category yet."
-                  actionText="View all products"
-                  actionLink="/"
-                />
+                <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
+                  <div className="bg-primary/10 w-20 h-20 rounded-full flex items-center justify-center mb-4">
+                    <Icon icon="ri-shopping-bag-line text-3xl text-primary" />
+                  </div>
+                  <h2 className="text-2xl font-bold mb-2">No products found</h2>
+                  <p className="text-neutral-600 max-w-md mb-6">There are no products in this category yet.</p>
+                  <Button asChild>
+                    <Link href="/">View all products</Link>
+                  </Button>
+                </div>
               )}
             </>
           )}

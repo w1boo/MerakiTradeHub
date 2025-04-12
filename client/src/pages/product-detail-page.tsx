@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useParams, useLocation, Link } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
-import { Product, User } from "@/types";
+import { Product, User, ProductCategory } from "@/types";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import Header from "@/components/layout/header";
 import Footer from "@/components/layout/footer";
@@ -69,6 +69,12 @@ export default function ProductDetailPage() {
   const { data: seller } = useQuery<User>({
     queryKey: [`/api/users/${product?.sellerId}`],
     enabled: !!product?.sellerId,
+  });
+  
+  // Fetch categories for display
+  const { data: categories } = useQuery<ProductCategory[]>({
+    queryKey: ["/api/categories"],
+    enabled: !!product,
   });
   
   // Create transaction mutation
@@ -479,7 +485,15 @@ export default function ProductDetailPage() {
                       <div className="space-y-2">
                         <div className="flex justify-between">
                           <span className="text-neutral-600">Category</span>
-                          <span className="font-medium">{product.category?.name || "Uncategorized"}</span>
+                          <span className="font-medium">
+                            {product.categoryId ? (
+                              <Link href={`/categories/${product.categoryId}`}>
+                                {categories?.find(cat => cat.id === product.categoryId)?.name || "Category"}
+                              </Link>
+                            ) : (
+                              "Uncategorized"
+                            )}
+                          </span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-neutral-600">Condition</span>

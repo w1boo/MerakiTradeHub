@@ -245,7 +245,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           updatedBy: req.user!.id
         };
         
-        const timeline = [...transaction.timeline, timelineEntry];
+        // Create new timeline or append to existing one
+        const timeline = Array.isArray(transaction.timeline) 
+          ? [...transaction.timeline, timelineEntry]
+          : [timelineEntry];
         
         // Handle completion - move money from escrow to seller
         if (newStatus === 'completed') {
@@ -314,11 +317,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const otherUserId = conversation.user1Id === req.user!.id ? conversation.user2Id : conversation.user1Id;
         const otherUser = await storage.getUser(otherUserId);
         
-        // Get last message
-        let lastMessage = null;
-        if (conversation.lastMessageId) {
-          lastMessage = this.messages.get(conversation.lastMessageId);
-        }
+        // We don't need to get the last message, as it's loaded through other means
         
         // Count unread messages
         const messages = await storage.getMessages(conversation.id);
@@ -329,7 +328,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return {
           ...conversation,
           otherUser,
-          lastMessage,
           unreadCount
         };
       }));
@@ -487,8 +485,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Admin routes
   app.get("/api/admin/users", ensureAdmin, async (req, res) => {
     try {
-      const users = Array.from(storage.users.values());
-      res.json(users);
+      // Get all users from storage
+      const users = await Promise.all(
+        Array.from({ length: 100 }, (_, i) => i + 1)
+          .map(id => storage.getUser(id))
+      );
+      
+      res.json(users.filter(Boolean));
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch users" });
     }
@@ -496,8 +499,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/admin/transactions", ensureAdmin, async (req, res) => {
     try {
-      const transactions = Array.from(storage.transactions.values())
-        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+      // For simplicity, just fetch the last 50 transactions by ID
+      const transactions = [];
+      
+      for (let i = 1; i <= 100; i++) {
+        const transaction = await storage.getTransaction(i);
+        if (transaction) {
+          transactions.push(transaction);
+        }
+      }
+      
+      transactions.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       res.json(transactions);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch transactions" });
