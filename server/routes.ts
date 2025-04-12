@@ -5,7 +5,7 @@ import { setupAuth } from "./auth";
 import { z } from "zod";
 import { 
   insertProductSchema, insertTransactionSchema, insertMessageSchema, 
-  insertDepositSchema, insertWithdrawalSchema
+  insertDepositSchema, insertWithdrawalSchema, InsertProduct
 } from "@shared/schema";
 import { randomBytes } from "crypto";
 

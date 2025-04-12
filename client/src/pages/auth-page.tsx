@@ -11,7 +11,6 @@ import {
   CardHeader,
   CardTitle,
   CardDescription,
-  CardFooter,
 } from "@/components/ui/card";
 import {
   Tabs,
@@ -29,7 +28,6 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 
 // Login form schema
 const loginSchema = z.object({
@@ -190,23 +188,6 @@ export default function AuthPage() {
                       </form>
                     </Form>
                   </CardContent>
-                  <CardFooter className="flex flex-col space-y-4">
-                    <div className="relative flex items-center w-full">
-                      <div className="flex-grow border-t border-neutral-200"></div>
-                      <span className="flex-shrink mx-4 text-neutral-600">or continue with</span>
-                      <div className="flex-grow border-t border-neutral-200"></div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4 w-full">
-                      <Button variant="outline" className="w-full">
-                        <Icon icon="ri-google-fill text-xl mr-2" />
-                        Google
-                      </Button>
-                      <Button variant="outline" className="w-full">
-                        <Icon icon="ri-facebook-fill text-xl mr-2" />
-                        Facebook
-                      </Button>
-                    </div>
-                  </CardFooter>
                 </TabsContent>
 
                 <TabsContent value="register">
@@ -337,23 +318,6 @@ export default function AuthPage() {
                       </form>
                     </Form>
                   </CardContent>
-                  <CardFooter className="flex flex-col space-y-4">
-                    <div className="relative flex items-center w-full">
-                      <div className="flex-grow border-t border-neutral-200"></div>
-                      <span className="flex-shrink mx-4 text-neutral-600">or continue with</span>
-                      <div className="flex-grow border-t border-neutral-200"></div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4 w-full">
-                      <Button variant="outline" className="w-full">
-                        <Icon icon="ri-google-fill text-xl mr-2" />
-                        Google
-                      </Button>
-                      <Button variant="outline" className="w-full">
-                        <Icon icon="ri-facebook-fill text-xl mr-2" />
-                        Facebook
-                      </Button>
-                    </div>
-                  </CardFooter>
                 </TabsContent>
               </Card>
             </Tabs>
@@ -383,34 +347,20 @@ export default function AuthPage() {
               </div>
               <div className="mb-6">
                 <h3 className="text-xl font-semibold mb-2 flex items-center">
-                  <Icon icon="ri-exchange-line text-2xl text-secondary mr-2" />
-                  Trade or Buy Options
+                  <Icon icon="ri-refund-2-line text-2xl text-green-500 mr-2" />
+                  Fair Dispute Resolution
                 </h3>
                 <p className="text-neutral-600 ml-9">
-                  Choose to buy items directly or offer trades with other items. Flexible options for every transaction.
+                  If a transaction goes wrong, our platform offers fair dispute resolution to ensure everyone is treated fairly.
                 </p>
               </div>
-              <Separator className="my-6" />
-              <div className="flex space-x-4 items-center">
-                <div className="flex -space-x-4">
-                  <img
-                    src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?crop=entropy&cs=tinysrgb&fit=crop&fm=jpg&h=40&ixid=MnwxfDB8MXxyYW5kb218MHx8cGVyc29ufHx8fHx8MTY5NzI5MzQ4MA&ixlib=rb-4.0.3&q=80&w=40"
-                    alt="User"
-                    className="w-10 h-10 rounded-full border-2 border-white"
-                  />
-                  <img
-                    src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?crop=entropy&cs=tinysrgb&fit=crop&fm=jpg&h=40&ixid=MnwxfDB8MXxyYW5kb218MHx8cGVyc29ufHx8fHx8MTY5NzI5MzUwMA&ixlib=rb-4.0.3&q=80&w=40"
-                    alt="User"
-                    className="w-10 h-10 rounded-full border-2 border-white"
-                  />
-                  <img
-                    src="https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?crop=entropy&cs=tinysrgb&fit=crop&fm=jpg&h=40&ixid=MnwxfDB8MXxyYW5kb218MHx8cGVyc29ufHx8fHx8MTY5NzI5MzUyMw&ixlib=rb-4.0.3&q=80&w=40"
-                    alt="User"
-                    className="w-10 h-10 rounded-full border-2 border-white"
-                  />
-                </div>
-                <p className="text-sm text-neutral-600">
-                  Join thousands of users already trading on our platform
+              <div>
+                <h3 className="text-xl font-semibold mb-2 flex items-center">
+                  <Icon icon="ri-exchange-line text-2xl text-blue-500 mr-2" />
+                  Trade Options
+                </h3>
+                <p className="text-neutral-600 ml-9">
+                  Unique to Meraki, you can trade items instead of just buying, opening up more possibilities for collectors and enthusiasts.
                 </p>
               </div>
             </div>
