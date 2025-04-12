@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -43,7 +43,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2 } from "lucide-react";
+import { Loader2, Upload } from "lucide-react";
 
 // Form schema definition with zod
 const formSchema = z.object({
@@ -69,14 +69,6 @@ const formSchema = z.object({
 });
 
 type FormValues = z.infer<typeof formSchema>;
-
-// Placeholder image URLs (we would use a real image upload service in production)
-const placeholderImages = [
-  "https://images.unsplash.com/photo-1542291026-7eec264c27ff?crop=entropy&cs=tinysrgb&fit=crop&fm=jpg&h=500&ixid=MnwxfDB8MXxyYW5kb218MHx8c25lYWtlcnN8fHx8fHwxNjk3MjkzMzgz&ixlib=rb-4.0.3&q=80&w=500",
-  "https://images.unsplash.com/photo-1494232410401-ad00d5433cfa?crop=entropy&cs=tinysrgb&fit=crop&fm=jpg&h=500&ixid=MnwxfDB8MXxyYW5kb218MHx8Y2FtZXJhfHx8fHx8MTY5NzI5MzQwNw&ixlib=rb-4.0.3&q=80&w=500",
-  "https://images.unsplash.com/photo-1586495777744-4413f21062fa?crop=entropy&cs=tinysrgb&fit=crop&fm=jpg&h=500&ixid=MnwxfDB8MXxyYW5kb218MHx8bGFwdG9wfHx8fHx8MTY5NzI5MzQzMA&ixlib=rb-4.0.3&q=80&w=500",
-  "https://images.unsplash.com/photo-1503602642458-232111445657?crop=entropy&cs=tinysrgb&fit=crop&fm=jpg&h=500&ixid=MnwxfDB8MXxyYW5kb218MHx8ZnVybml0dXJlfHx8fHx8MTY5NzI5MzQ1NQ&ixlib=rb-4.0.3&q=80&w=500"
-];
 
 export default function ListingFormPage() {
   const params = useParams<{ id?: string }>();
@@ -203,31 +195,78 @@ export default function ListingFormPage() {
     }
   };
   
-  // Handle image selection (would be replaced with actual image upload in production)
-  const handleImageSelection = (imageUrl: string) => {
-    if (selectedImages.includes(imageUrl)) {
-      setSelectedImages(selectedImages.filter(img => img !== imageUrl));
-    } else {
-      setSelectedImages([...selectedImages, imageUrl]);
+
+  
+  // File input reference
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Handle drag events
+  const [isDragging, setIsDragging] = useState(false);
+  
+  // Handle drag and drop events
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+  
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+  
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+  
+  // Handle file drop
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      handleFiles(e.dataTransfer.files);
     }
   };
   
-  // Add a custom URL as an image
-  const handleAddCustomUrl = (e: React.FormEvent) => {
-    e.preventDefault();
-    const input = (e.target as HTMLFormElement).elements.namedItem('customUrl') as HTMLInputElement;
-    const url = input.value.trim();
-    
-    if (url && !selectedImages.includes(url)) {
-      setSelectedImages([...selectedImages, url]);
-      input.value = '';
-    } else if (selectedImages.includes(url)) {
-      toast({
-        title: "Duplicate image",
-        description: "This image URL is already added to your listing.",
-        variant: "destructive",
-      });
+  // Handle file input change
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      handleFiles(e.target.files);
     }
+  };
+  
+  // Process the files
+  const handleFiles = (files: FileList) => {
+    const newImages: string[] = [];
+    
+    Array.from(files).forEach(file => {
+      // Only process image files
+      if (!file.type.match('image.*')) {
+        toast({
+          title: "Invalid file type",
+          description: `${file.name} is not an image file.`,
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      // Convert file to data URL
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        if (e.target && e.target.result) {
+          const dataUrl = e.target.result as string;
+          if (!selectedImages.includes(dataUrl)) {
+            setSelectedImages(prev => [...prev, dataUrl]);
+          }
+        }
+      };
+      reader.readAsDataURL(file);
+    });
   };
   
   // Remove an image
@@ -527,53 +566,36 @@ export default function ListingFormPage() {
                             <FormMessage />
                           </div>
                           
-                          <Tabs defaultValue="sample">
-                            <TabsList className="grid w-full grid-cols-2">
-                              <TabsTrigger value="sample">Sample Images</TabsTrigger>
-                              <TabsTrigger value="custom">Custom URL</TabsTrigger>
-                            </TabsList>
-                            <TabsContent value="sample" className="mt-4">
-                              <p className="text-sm text-neutral-600 mb-4">
-                                Select from sample images (for demo purposes):
+                          <div 
+                            className={`border-2 border-dashed rounded-lg p-6 transition-all ${
+                              isDragging 
+                                ? 'border-primary bg-primary/5' 
+                                : 'border-gray-300 hover:border-primary/50'
+                            }`}
+                            onDragEnter={handleDragEnter}
+                            onDragOver={handleDragOver}
+                            onDragLeave={handleDragLeave}
+                            onDrop={handleDrop}
+                            onClick={() => fileInputRef.current?.click()}
+                          >
+                            <div className="flex flex-col items-center justify-center gap-2 text-center cursor-pointer">
+                              <Upload className="h-10 w-10 text-gray-400" />
+                              <p className="text-lg font-medium">
+                                Drag & drop images here or click to browse
                               </p>
-                              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                {placeholderImages.map((img, idx) => (
-                                  <div 
-                                    key={idx} 
-                                    className={`relative cursor-pointer border-2 rounded-md overflow-hidden ${
-                                      selectedImages.includes(img) ? 'border-primary' : 'border-transparent'
-                                    }`}
-                                    onClick={() => handleImageSelection(img)}
-                                  >
-                                    <img 
-                                      src={img} 
-                                      alt={`Sample ${idx + 1}`} 
-                                      className="w-full h-32 object-cover"
-                                    />
-                                    {selectedImages.includes(img) && (
-                                      <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
-                                        <Icon icon="ri-check-line text-2xl text-primary" />
-                                      </div>
-                                    )}
-                                  </div>
-                                ))}
-                              </div>
-                            </TabsContent>
-                            <TabsContent value="custom" className="mt-4">
-                              <form onSubmit={handleAddCustomUrl} className="flex gap-2">
-                                <Input 
-                                  name="customUrl"
-                                  type="url" 
-                                  placeholder="Enter image URL" 
-                                  className="flex-grow"
-                                />
-                                <Button type="submit">Add</Button>
-                              </form>
-                              <p className="text-xs text-neutral-500 mt-2">
-                                Enter a valid image URL to add to your listing
+                              <p className="text-sm text-gray-500">
+                                Supports JPG, PNG and GIF files
                               </p>
-                            </TabsContent>
-                          </Tabs>
+                              <input
+                                ref={fileInputRef}
+                                type="file"
+                                accept="image/*"
+                                multiple
+                                className="hidden"
+                                onChange={handleFileInputChange}
+                              />
+                            </div>
+                          </div>
                         </FormItem>
                       )}
                     />
