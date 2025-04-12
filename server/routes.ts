@@ -3,11 +3,9 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth } from "./auth";
 import { z } from "zod";
-import { handleDirectTradeAcceptance, completeDirectTrade } from "./trade-handler";
 import { 
   insertProductSchema, insertTransactionSchema, insertMessageSchema, 
-  insertDepositSchema, insertWithdrawalSchema, insertDirectTradeOfferSchema,
-  InsertProduct, Product, DirectTradeOffer
+  insertDepositSchema, insertWithdrawalSchema, InsertProduct, Product
 } from "@shared/schema";
 import { randomBytes } from "crypto";
 
@@ -174,21 +172,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (product.sellerId === buyerId) {
         return res.status(400).json({ error: "Cannot buy/trade your own product" });
       }
-      
-      // Check if product is already sold
-      if (product.status === 'sold') {
-        return res.status(400).json({ error: "This product has already been sold or traded" });
-      }
-      
-      // Check if there's already a transaction for this product
-      const userTransactions = await storage.getUserTransactions(buyerId);
-      const existingTransaction = userTransactions.find(
-        t => t.productId === product.id && (t.status === 'completed' || t.status === 'pending')
-      );
-      
-      if (existingTransaction) {
-        return res.status(400).json({ error: "A transaction for this product already exists" });
-      }
 
       // Calculate platform fee (10-20%)
       const feePercentage = req.body.type === 'trade' ? 0.1 : 0.15;
@@ -332,190 +315,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(updatedTransaction);
     } catch (error) {
       res.status(500).json({ error: "Failed to update transaction" });
-    }
-  });
-
-  // Direct Trade routes
-  app.post("/api/direct-trade-offers", ensureAuthenticated, async (req, res) => {
-    try {
-      const buyerId = req.user!.id;
-      const { productId, offeredItemName, offeredItemValue, offeredItemDescription, offeredItemImages } = req.body;
-      
-      // Get the product
-      const product = await storage.getProduct(productId);
-      if (!product) {
-        return res.status(404).json({ error: "Product not found" });
-      }
-      
-      // Check if product allows trade
-      if (!product.allowTrade) {
-        return res.status(400).json({ error: "This product does not allow trading" });
-      }
-      
-      // Cannot trade your own product
-      if (product.sellerId === buyerId) {
-        return res.status(400).json({ error: "Cannot trade with your own product" });
-      }
-      
-      // Check if product is already sold
-      if (product.status === 'sold') {
-        return res.status(400).json({ error: "This product has already been sold" });
-      }
-      
-      // Check if there's already a pending offer for this product from this user
-      const pendingOffers = await storage.getPendingDirectTradeOffersForUser(buyerId);
-      const existingOffer = pendingOffers.find(offer => offer.productId === productId);
-      
-      if (existingOffer) {
-        return res.status(400).json({ error: "You already have a pending trade offer for this product" });
-      }
-      
-      // Create the direct trade offer
-      const tradeOffer = await storage.createDirectTradeOffer({
-        buyerId,
-        sellerId: product.sellerId,
-        productId: product.id,
-        status: 'pending',
-        offeredItemName,
-        offeredItemValue,
-        offeredItemDescription,
-        offeredItemImages: offeredItemImages || [],
-        createdAt: new Date()
-      });
-      
-      res.status(201).json({
-        success: true,
-        message: "Direct trade offer created successfully",
-        offer: tradeOffer
-      });
-    } catch (error) {
-      console.error("Error creating direct trade offer:", error);
-      res.status(500).json({ error: "Failed to create direct trade offer" });
-    }
-  });
-  
-  app.get("/api/direct-trade-offers", ensureAuthenticated, async (req, res) => {
-    try {
-      const userId = req.user!.id;
-      
-      // Get both received and sent offers
-      const offers = await storage.getUserDirectTradeOffers(userId);
-      
-      // Enhance offers with product and user information
-      const enhancedOffers = await Promise.all(offers.map(async (offer) => {
-        const product = await storage.getProduct(offer.productId);
-        const buyer = await storage.getUser(offer.buyerId);
-        const seller = await storage.getUser(offer.sellerId);
-        
-        return {
-          ...offer,
-          product,
-          buyer: buyer ? { 
-            id: buyer.id, 
-            username: buyer.username,
-            avatar: buyer.avatar
-          } : null,
-          seller: seller ? { 
-            id: seller.id, 
-            username: seller.username,
-            avatar: seller.avatar
-          } : null
-        };
-      }));
-      
-      res.json(enhancedOffers);
-    } catch (error) {
-      console.error("Error fetching direct trade offers:", error);
-      res.status(500).json({ error: "Failed to fetch direct trade offers" });
-    }
-  });
-  
-  app.get("/api/direct-trade-offers/:id", ensureAuthenticated, async (req, res) => {
-    try {
-      const userId = req.user!.id;
-      const offerId = parseInt(req.params.id);
-      
-      const offer = await storage.getDirectTradeOffer(offerId);
-      if (!offer) {
-        return res.status(404).json({ error: "Trade offer not found" });
-      }
-      
-      // Check if user is part of this offer
-      if (offer.buyerId !== userId && offer.sellerId !== userId) {
-        return res.status(403).json({ error: "Not authorized to view this offer" });
-      }
-      
-      // Enhance offer with product and user info
-      const product = await storage.getProduct(offer.productId);
-      const buyer = await storage.getUser(offer.buyerId);
-      const seller = await storage.getUser(offer.sellerId);
-      
-      const enhancedOffer = {
-        ...offer,
-        product,
-        buyer: buyer ? { 
-          id: buyer.id, 
-          username: buyer.username,
-          avatar: buyer.avatar
-        } : null,
-        seller: seller ? { 
-          id: seller.id, 
-          username: seller.username,
-          avatar: seller.avatar
-        } : null
-      };
-      
-      res.json(enhancedOffer);
-    } catch (error) {
-      console.error("Error fetching direct trade offer:", error);
-      res.status(500).json({ error: "Failed to fetch direct trade offer" });
-    }
-  });
-  
-  app.post("/api/direct-trade-offers/:id/accept", ensureAuthenticated, async (req, res) => {
-    // Use the handler from trade-handler.ts
-    req.body.offerId = parseInt(req.params.id);
-    handleDirectTradeAcceptance(req, res);
-  });
-  
-  app.post("/api/direct-trade/:id/complete", ensureAuthenticated, async (req, res) => {
-    // Use the handler from trade-handler.ts
-    req.body.transactionId = parseInt(req.params.id);
-    completeDirectTrade(req, res);
-  });
-  
-  app.delete("/api/direct-trade-offers/:id", ensureAuthenticated, async (req, res) => {
-    try {
-      const userId = req.user!.id;
-      const offerId = parseInt(req.params.id);
-      
-      const offer = await storage.getDirectTradeOffer(offerId);
-      if (!offer) {
-        return res.status(404).json({ error: "Trade offer not found" });
-      }
-      
-      // Check if user is part of this offer
-      if (offer.buyerId !== userId && offer.sellerId !== userId) {
-        return res.status(403).json({ error: "Not authorized to cancel this offer" });
-      }
-      
-      // Only pending offers can be cancelled
-      if (offer.status !== 'pending') {
-        return res.status(400).json({ error: `Cannot cancel an offer that is already ${offer.status}` });
-      }
-      
-      // Update the offer status to cancelled
-      await storage.updateDirectTradeOffer(offer.id, {
-        status: 'cancelled'
-      });
-      
-      res.json({
-        success: true,
-        message: "Trade offer cancelled successfully"
-      });
-    } catch (error) {
-      console.error("Error cancelling direct trade offer:", error);
-      res.status(500).json({ error: "Failed to cancel direct trade offer" });
     }
   });
 
