@@ -326,8 +326,11 @@ export class MemStorage implements IStorage {
     const id = this.currentMessageId++;
     const timestamp = new Date();
     const newMessage: Message = { 
-      ...message, 
-      id, 
+      id,
+      senderId: message.senderId,
+      receiverId: message.receiverId,
+      content: message.content,
+      images: message.images || null,
       isRead: false,
       createdAt: timestamp
     };
@@ -361,8 +364,10 @@ export class MemStorage implements IStorage {
     const id = this.currentConversationId++;
     const timestamp = new Date();
     const newConversation: Conversation = { 
-      ...conversation, 
-      id, 
+      id,
+      user1Id: conversation.user1Id,
+      user2Id: conversation.user2Id,
+      lastMessageId: conversation.lastMessageId || null,
       updatedAt: timestamp
     };
     this.conversations.set(id, newConversation);
